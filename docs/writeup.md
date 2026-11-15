@@ -145,7 +145,12 @@ other five validation files remain unchanged.
 In the original clean Python 3.13.12 verification, installation and `pip check` were clean;
 the then-current full suite passed 133 tests in 44.05s; Ruff check was clean; and Ruff format
 reported 33 files already formatted. After three chart-generation tests were added, the
-full suite passed 136 tests in the visual-README acceptance. Browser acceptance covered both modes: editing daily radiation from
+full suite passed 136 tests in the visual-README acceptance. A subsequent clean clone of
+package commit `33c650bca3cbc82e365914792603773e7f02ce42` installed with Python 3.13.12 using
+`pip install -e ".[dev]"`; `sunreserve` loaded from that clone with Pillow 13.0.0. `pip check`
+was clean, 136 tests passed in 45.54s, Ruff check passed, and Ruff format reported 38 files
+already formatted. The first non-elevated install attempt had hit DNS while resolving
+setuptools, but the later clean-clone install succeeded. Browser acceptance covered both modes: editing daily radiation from
 5.7787 to 7.7787 changed the fresh prediction, changing hypothetical demand from 15 to 25
 changed planned reserve, and historical date selection from 2022-01-01 to 2022-01-02 worked.
 Charts, units, model identity, baseline comparisons, assumptions, failure examples, and
@@ -166,12 +171,12 @@ results are neither a causal savings analysis nor evidence of real facility bene
 Further claims would require forecast-available weather data, measured site demand and
 generation, an appropriate physical model, and prospective field validation.
 
-The public source repository is [icecold009/sunreserve](https://github.com/icecold009/sunreserve), whose `feature/veritas-sunreserve` branch is at base commit
-`2518eb49b912ef739d8207d20f2e17194707097d`. The updated README and visual assets,
-submission write-up, and demo script have been reviewed locally and are awaiting the
-authorized commit and push to that feature branch. No pull request, hosted app, uploaded
-video, or hackathon submission exists. Local reproduction instructions are in the
-[README](../README.md).
+The public source repository is [icecold009/sunreserve](https://github.com/icecold009/sunreserve).
+The reviewed visual README package, including its assets, submission write-up, and demo
+script, was pushed to `feature/veritas-sunreserve` in package commit
+`33c650bca3cbc82e365914792603773e7f02ce42`. This package SHA does not identify the later
+plan/write-up checkpoint edits. No pull request, hosted app, uploaded video, or hackathon
+submission exists. Local reproduction instructions are in the [README](../README.md).
 
 ## Sources and credits
 
