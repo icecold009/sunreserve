@@ -1,0 +1,10 @@
+# SunReserve demo script (2 minutes)
+
+| Time | Narration and screen action |
+| --- | --- |
+| 0:00–0:15 | **Problem.** “A school facilities manager may need to plan backup energy before tomorrow’s solar contribution is known. SunReserve tests whether a small radiation forecast changes that planning trade-off.” Show the app title and hypothetical-school framing. |
+| 0:15–1:15 | **Edit the input, run fresh inference, compare reserves.** In Next-day AI prediction for target 2025-01-01, change the last radiation value from 5.7787 to 7.7787 in the seven-day observation window, then click **Run fresh Ridge prediction**. “These user-entered rows drive a fresh trained Ridge inference. The app also shows persistence and seasonal-mean baselines.” Point to the table: “Ridge predicts 6.505 kWh/m²/day and plans 4.184 kWh of reserve; persistence plans 0.108, while the seasonal mean plans 8.175 kWh. Here demand is a hypothetical 25 kWh/day, with the default 15 kWh reserve cap. These are simulated plans from assumptions, not observed results.” |
+| 1:15–1:45 | **Measured result.** Open the frozen 2025 results and point to the baseline charts. “Across 365 held-out dates, radiation MAE was 0.539 for Ridge, 0.589 for persistence, and 0.712 for the seasonal mean, in kWh per square metre per day. But under the separate test scenario of 15 kWh/day demand and a 15 kWh cap, Ridge’s mean simulated shortfall was 0.608 kWh/day, higher than persistence at 0.438. The equal-weight score is hypothetical.” |
+| 1:45–2:00 | **Limitation and next step.** “NASA POWER radiation is a historical estimate with reported latency of about five to seven days, and our electricity conversion and school demand are assumptions. There is no field validation or operational control. Next, we would verify forecast-time input availability and evaluate against measured site data.” |
+
+The example input dates are historical; the demo does not establish a verified live next-day forecast. No video has been recorded or uploaded and no hackathon entry has been submitted.

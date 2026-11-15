@@ -1,6 +1,6 @@
 # SunReserve implementation plan
 
-Status: Minimum implementation requirements for Stages A–E were implemented and verified on 2026-11-14. Fresh inference and the separate frozen 2025 replay are implemented; development selection remained on 2022 validation only. The 2025 replay has 365/365 common targets and no exclusions. Full clean-environment verification passed (133 tests, Ruff, formatting, and dependency consistency), and both Streamlit modes passed browser acceptance. The historical 2023–2024 run remains unchanged. Commit `41741e3ae83c26c49ea973a3016374a065511113` was pushed to `feature/veritas-sunreserve` and verified through the GitHub connector; no PR, merge, publication, deployment, or hackathon submission occurred.
+Status: The historical forecasting implementation, fresh inference, and separate frozen 2025 replay are implemented. The 2025 replay has 365/365 common targets and no exclusions; development selection remained on 2022 validation only. The historical 2023–2024 run remains unchanged. Root independently verified 136 passing tests in 34.85s, Ruff check, Ruff format across 38 files, and clean `pip check`. The chart generator ran twice with stable identical hashes for its three PNG outputs, derived from 365 frozen predictions and three decision-metric rows. The README is within its 600–800-word target; all local links, four PNG files, and the SVG banner were checked. Fresh-checkout installation and both browser modes were previously verified with Python 3.13 and Pillow 13.0.0. The current bound is `Pillow>=10.1,<14`; a later editable reinstall could not resolve the setuptools build dependency because network DNS was unavailable, so that reinstall was not verified. The public GitHub repository is `icecold009/sunreserve`; the remote `feature/veritas-sunreserve` base is `2518eb49b912ef739d8207d20f2e17194707097d`. The reviewed README/assets and submission documents await the now-authorized commit and push. No PR, merge, deployed app, uploaded video, or hackathon submission exists.
 
 ## 1. Outcome and boundaries
 
@@ -17,7 +17,7 @@ The minimum complete solution is a reproducible historical experiment, two simpl
 
 ## 2. Current baseline
 
-Observed baseline: `feature/veritas-sunreserve`, an editable Python package, isolated `.venv`, dependency declarations, Ruff/pytest configuration, and data/documentation folders. The repository has no initial commit; the scaffold was untracked before implementation and remains uncommitted.
+Observed baseline at project start: `feature/veritas-sunreserve`, an editable Python package, isolated `.venv`, dependency declarations, Ruff/pytest configuration, and data/documentation folders. The scaffold was initially committed and pushed as project work; the current checkout has Git history. Later working-tree drafts are not represented by the recorded base commit until reviewed and delivered.
 
 Verified on 2026-11-14: Stage A data ingestion, daily preparation, supervised rows, chronological splits, and two simple baselines are implemented. NASA POWER supplied 3,288 complete daily rows (2016–2024); the raw response SHA-256 is `925dde6e86766df7f0f65c91d77947e7306068892fd02ddec0c5b891d28c908`. The supervised builder reports 3,287 candidate target rows, six initial-window exclusions, and 3,281 eligible rows (2,185 train, 365 validation, 731 test). Forty focused tests and global Ruff checks passed. No Ridge model, validation selection, reserve evaluation, or final-test performance result is included in this Stage A evidence.
 
@@ -27,7 +27,7 @@ Preserve this starting work. Keep implementation on a feature branch. Use the Gi
 
 ## 3. Execution order and cut points
 
-All checkboxes below describe future work. Time ranges are estimates for focused implementation, not measured usage or completion promises.
+Checked items record completed work with evidence in their entries; unchecked delivery and submission tasks remain pending. Stage time ranges are original estimates, not measured usage.
 
 | Stage | Depends on | Budget | Exit condition |
 | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ Primary files: new `src/sunreserve/config.py`, `src/sunreserve/__main__.py`, and
 - [x] Make network access explicit in `fetch`; all later commands work from cached data. Prevent an accidental download from importing a module or starting the interface. Evidence: offline CLI and app checks; app launch reads only cached artifacts.
 - [x] Record the resolved configuration in every experiment manifest. Do not silently switch sources or locations. Evidence: frozen run manifests include resolved settings and configuration hash.
 
-Acceptance: invalid settings fail before work starts; local fixture commands work without network access. These commands are implementation targets, not commands to run against today's scaffold.
+Historical acceptance criteria: invalid settings fail before work starts, and local fixture commands work without network access. Implementation and completed command evidence are recorded in sections 5–10 below.
 
 ## 5. Stage A: source ingestion and quality checks
 
@@ -174,7 +174,7 @@ $manifestHash = (Get-FileHash .\artifacts\validation\selection_manifest.json -Al
 & .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-`finalize` requires the inspected selection-manifest digest and an optional safe run ID; `report` requires that exact run ID. Raw data, prepared data, model objects, and generated experiment runs remain ignored local files. No public demo bundle was created because publication/upload was not authorized; a reproducible download-and-run path is documented in the README.
+`finalize` requires the inspected selection-manifest digest and an optional safe run ID; `report` requires that exact run ID. Raw data, prepared data, model objects, and generated experiment runs remain ignored local files. The source repository is public, but there is no packaged public demo bundle or hosted app; a reproducible download-and-run path is documented in the README.
 
 ## 11. Report and hackathon delivery
 
@@ -184,7 +184,7 @@ Primary files: `docs/writeup.md`, `README.md`, source/assumption documentation, 
 - [x] Explain that forecast improvement and decision improvement are different outcomes. State explicitly if either fails to improve. Evidence: the write-up reports modest forecast gains and the less favorable Ridge-versus-persistence shortfall trade-off without claiming reliability improvement.
 - [x] Cite NASA POWER, libraries/models/tutorials, and every coding assistant used. Verify data-use terms and current parameter documentation during ingestion. Evidence: NASA POWER docs/terms were checked during Stage A and the write-up credits the data, direct software/model sources, Luna, Codex, and advisory Jev review. The POWER referencing guide's requested notification is recorded; no email/notification was sent. No root `LICENSE`, `COPYING`, or `NOTICE` file exists and no license was added, so this project patch grants no project reuse license.
 - [ ] Prepare an optional video of at most two minutes: problem, real historical example, baseline comparison, and one limitation. Do not script numerical claims until measured results exist.
-- [ ] Before publishing, ensure the repo/write-up and any demonstration bundle are usable without private local files; otherwise explain the download/reproduction path clearly. Local setup and reproduction commands are documented; no public bundle was created, and publication is outside this implementation.
+- [ ] Before any submission or further publication, ensure the repo/write-up and any demonstration bundle are usable without private local files; otherwise explain the download/reproduction path clearly. The public feature branch has the reproducible source project; reviewed documentation and visual assets are awaiting the authorized commit and push. No hosted app or packaged demo bundle exists.
 - [ ] Check public links while signed out, saved notebook outputs if a notebook is used, team names/emails/schools, and the latest submission version.
 - [ ] Preserve a submission snapshot before the deadline: Monday, 16 November 2026, 10:29 AM IST, based on the organizer's project briefs.
 
@@ -198,7 +198,7 @@ Publishing, committing, pushing, opening a PR, uploading a video, or submitting 
 - [x] Correct, clearly hypothetical reserve simulation with fair comparisons.
 - [x] Reproducible artifacts, focused tests, passing lint/format, and an offline demo.
 - [x] Honest results and failure examples included where applicable.
-- [x] Complete write-up, citations, and setup instructions. Public delivery links remain deferred because there is no publication.
+- [x] Complete write-up, citations, and setup instructions. The source repository is public; the reviewed write-up, README/assets, submission write-up, and demo script await feature-branch delivery.
 
 Optional follow-up work only after this checklist: quantile forecasts with calibrated uncertainty, measured school demand, a proper PV model, verified real-time data availability, or field testing. Each would need its own scope and evidence; none is required for the hackathon minimum.
 
@@ -221,7 +221,7 @@ observations were available at forecast issue time.
 - [x] Evaluate only the frozen selection on a genuinely untouched later period before making any new final-performance claim. Evidence: the separately sourced 2025 holdout in Stage 14 was evaluated once after selection was frozen on 2022 validation; no fitting, tuning, or selection used 2025.
 - [x] Complete-diff review. Evidence: 33 successful, untruncated Jev 1.14.0 calls (524,777 input / 16,467 output) covered all application/source files, all 12 tests, docs, packaging/model files, both selection-manifest contents (112 metric records in six chunks; the copied 2025 manifest was hash-identical), all 2025 prediction/decision rows (two plus six chunks), and the final `.gitattributes`, `pyproject.toml`, and sidecar review; `evaluate.py` was covered in two exact line-range excerpts. Exclusions were confirmed unchanged pre-existing 2023–2024/validation/raw/processed artifacts and empty placeholders. One initial full-predictions CSV call returned non-JSON; two successful chunks then covered and reconstructed the exact rows with newline normalization only. Generic incomplete-context/correctness-concern gates were checked against source, tests, and artifact hashes; no concrete file/line findings remained. The staged sidecar blob SHA-256 matches the 2025 run manifest after raw-byte attributes were applied, and `git diff --cached --check` is clean.
 - [x] Complete source and license audit. Evidence: the current AWS Registry and NASA POWER referencing guidance are cited in `docs/data_sources.md`; their requests and the fact that no notification was sent are stated plainly. No root `LICENSE`, `COPYING`, or `NOTICE` file was found and no project license was added; this is documented as a reuse limitation, not a code defect.
-- [x] Commit and push the feature branch, then verify the hosted branch/files through the GitHub connector. Evidence: root project commit `41741e3ae83c26c49ea973a3016374a065511113` is on `feature/veritas-sunreserve`; the GitHub connector branch API confirms the same SHA. The repository had no commits or branches before this push. The recursive hosted tree is untruncated with 69 blobs and exactly matches the local commit's path set; README, this plan, the frozen 2025 run manifest, and the 2025 provenance sidecar blob IDs also match. As the sole branch, `feature/veritas-sunreserve` is GitHub's default; no `main` branch was changed. No PR, merge, publication, deployment, or hackathon submission occurred.
+- [ ] Commit and push the reviewed feature-branch changes, then verify the hosted branch/files through the GitHub connector. The remote public branch currently remains at base commit `2518eb49b912ef739d8207d20f2e17194707097d`; commit/push is authorized and pending. Do not treat these local changes as delivered until the hosted branch is independently verified. No PR, merge, app deployment, video upload, or hackathon submission exists.
 
 ## 14. Separate untouched 2025 evaluation path
 

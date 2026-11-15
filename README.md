@@ -1,217 +1,89 @@
 # SunReserve
 
-SunReserve pairs fresh trained-model inference from a user-supplied seven-day observation
-window with a reproducible historical replay. It asks whether a compact next-day
-**solar-radiation** model can improve a hypothetical school's daily backup-energy
-preparation over simple baselines. It is a research prototype, not a live weather feed,
-rooftop-generation measurement, operational controller, or demonstrated school deployment.
+<p align="center"><img src="docs/assets/sunreserve-banner.svg" alt="SunReserve illustration connecting solar radiation to a trained Ridge model and a reserve decision" width="100%"></p>
 
-NASA POWER daily radiation is model/satellite-derived `kWh/m²/day`. The reserve
-experiment converts it to a hypothetical electricity proxy and reports prepared reserve,
-shortfall, and excess in simulated `kWh/day`. Demand, panel area, efficiency, derating,
-capacity, and buffer are assumptions, not measurements.
+SunReserve uses a trained solar-radiation model to explore tomorrow’s backup-energy needs.
 
-## Install
+![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) ![136 locally verified tests](https://img.shields.io/badge/Tests-136%20locally%20verified-f2c14e)
 
-Python 3.11–3.13 is supported. From the repository root in PowerShell:
+<p align="center"><img src="docs/assets/prediction-demo.png" alt="SunReserve fresh Ridge forecast and planned reserve beside a seven-day input window and baseline comparison" width="900"></p>
+
+The screenshot is a genuine app run using its seven-day example and hypothetical 25 kWh daily demand. For 2025-01-01 it shows a fresh 5.39 kWh/m²/day Ridge estimate and 7.75 kWh planned reserve, alongside both baselines. The NASA POWER input dates are not verified as available on issue day; reserve is simulated.
+
+## The problem
+
+A facilities manager at a hypothetical Bengaluru school must plan backup energy for tomorrow while solar contribution is uncertain: too little reserve may leave demand unmet, while too much may waste capacity. SunReserve asks whether a next-day solar-radiation estimate changes this simulated decision compared with yesterday’s reading or a training-only seasonal mean. This historical research prototype uses NASA POWER gridded estimates, not school rooftop measurements; its demand and system settings are hypothetical and do not establish an operating school system.
+
+## The AI pipeline
+
+```mermaid
+flowchart LR
+    A[Seven daily observations] --> B[Validate inputs]
+    B --> C[Build historical features]
+    C --> D[Apply trained preprocessing]
+    D --> E[Trained Ridge model]
+    E --> F[Next-day solar prediction]
+    F --> G[Simulated reserve preparation]
+    B --> H[Simple baselines]
+    H --> I[Compare outputs]
+    G --> I
+```
+
+Ridge applies training-fitted median imputation and scaling. Persistence carries forward the latest reading; the seasonal baseline uses training-only monthly means. Prediction mode compares the forecasts and planned reserves under one assumption set. Since tomorrow’s actual is unknown, it reports no realized shortfall or excess.
+
+## Frozen 2025 results
+
+This frozen replay scores 365 common targets in 2025. Ridge was trained on 2,185 rows through 2021 and selected only on 2022 validation data. Earlier dates provide features; 2023–2024 targets are not scored. Each plot is generated from the committed result CSVs.
+
+January’s observed NASA POWER radiation is plotted against Ridge and persistence predictions. The dates shown are target dates, not evidence that observations were available when their simulated forecasts were issued.
+
+<p align="center"><img src="docs/assets/forecast-comparison.png" alt="Observed radiation and Ridge and persistence predictions for January 2025" width="900"></p>
+
+The full-year forecast comparison uses mean absolute error (MAE), in kWh/m²/day, on identical target dates. The vertical axis starts at zero to make the bar lengths comparable.
+
+<p align="center"><img src="docs/assets/forecast-error.png" alt="Zero-based 2025 radiation MAE comparison for Ridge, persistence, and seasonal mean" width="900"></p>
+
+| Approach | Radiation MAE (kWh/m²/day) | Mean simulated shortfall (kWh/day) | Mean excess prepared reserve (kWh/day) | Equal-weight score (kWh/day) |
+| --- | ---: | ---: | ---: | ---: |
+| Ridge | 0.5388 | 0.607825 | 0.179572 | 0.787398 |
+| Persistence | 0.5886 | 0.437777 | 0.433656 | 0.871433 |
+| Training-only seasonal mean | 0.7119 | 0.881887 | 0.045961 | 0.927848 |
+
+Scenario settings are assumptions: 15 kWh daily demand and capacity, 20 m² panels, 0.20 efficiency, 0.80 derating, and zero buffer. The scatter shows mean shortfall and excess reserve; left means less shortfall, down less excess. Ridge's shortfall exceeds persistence's (0.607825 versus 0.437777 kWh/day), while its excess is lower.
+
+<p align="center"><img src="docs/assets/reserve-tradeoff.png" alt="Mean simulated shortfall versus mean excess reserve for Ridge, persistence, and seasonal mean; lower and left are preferred" width="900"></p>
+
+The hypothetical equal-weight score adds mean shortfall and excess reserve at 1:1 weights. Ridge scores 0.787398 kWh/day versus 0.871433 for persistence and 0.927848 for seasonal mean. This research ranking is not a price, reliability target, operating recommendation, savings, or causal effect.
+
+## Quick start
+
+Python 3.11–3.13 is supported. From a fresh checkout, install the project and its verification tools, then launch the app. The tracked model and data artifacts let the demonstration start without downloading data or fitting a model.
 
 ```powershell
 python -m venv .venv
-& .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-& .\.venv\Scripts\python.exe -m pip check
-```
-
-The clean-environment installation and dependency check passed with Python 3.13.12,
-NumPy 2.5.4, pandas 3.1.1, scikit-learn 1.9.1, and Streamlit 1.67.0. `fetch` uses the
-standard-library HTTP client. NumPy, pandas, scikit-learn, and Streamlit are runtime
-dependencies; pytest and Ruff are in the development extra. Generated data and experiment
-artifacts are local and ignored by Git.
-
-## Reproduce the experiment
-
-Download is explicit; every command after `fetch` uses cached files only.
-
-```powershell
-& .\.venv\Scripts\python.exe -m sunreserve fetch
-& .\.venv\Scripts\python.exe -m sunreserve prepare
-& .\.venv\Scripts\python.exe -m sunreserve validate
-$manifestHash = (Get-FileHash .\artifacts\validation\selection_manifest.json -Algorithm SHA256).Hash.ToLower()
-# Inspect the selection manifest and validation outputs before final evaluation.
-& .\.venv\Scripts\python.exe -m sunreserve finalize --manifest-sha256 $manifestHash --run-id frozen-test-2023-24
-& .\.venv\Scripts\python.exe -m sunreserve report --run-id frozen-test-2023-24
-```
-
-`validate` fits preprocessing and models on 2016–2021 training targets and selects among
-Ridge, persistence, and training-only seasonal mean using 2022 validation MAE. The final
-test period is not read until `finalize`, which verifies the frozen manifest and input/code
-hashes, writes a new run directory, and refuses overwrite. The completed run is
-`artifacts/runs/frozen-test-2023-24/`; its run manifest records an `uncommitted` code
-identity rather than an invented commit. Its copied historical selection manifest SHA-256 is
-`d4e4d2f86ba3ac795d5e33adb313a0bb8fc64b438aaafe4a86d6af4670e92653`; this is intentionally
-distinct from the regenerated current validation manifest SHA-256
-`9cd60c7ab8b4e41078c1bf44d6698178334e6b9b6dba3d01a88f4e9a9d097fff`, which freezes the
-fresh model and reserve-selection objective. The raw POWER response SHA-256 is
-`925dde6e86766df7f0f65c91d77947e7306068892fd02ddec0c5b891d28c908`.
-
-To open the cached demonstration after validation:
-
-```powershell
+& .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 & .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-The app opens in **Next-day AI prediction** mode. Edit the seven consecutive daily rows, then
-run fresh Ridge inference. The model bundle is trained on 2016–2021 training targets only;
-its imputer and scaler use training-only fitted statistics. Prediction mode computes a new
-forecast from the entered values and never substitutes a cached prediction. It compares the
-forecast and planned reserve with persistence and seasonal-mean baselines. The next day's
-actual radiation is not supplied, so prediction mode does not report realized shortfall or
-excess reserve. The app also keeps the separate 2022 cached historical replay mode; replay
-loads saved artifacts and neither fetches nor trains.
+The default view is **Next-day AI prediction**. Confirm or replace the seven daily rows and choose **Run fresh Ridge prediction**. The separate replay view reads its saved historical artifacts. Neither mode contacts NASA POWER at startup. To refresh source data explicitly, follow the fetch, prepare, and validation procedure in the [method and results write-up](docs/writeup.md).
 
-Prediction mode requires a validation-generated `models/ridge_model.json` bundle that
-matches the checksum in `artifacts/validation/selection_manifest.json`. To run it from a JSON
-file, use seven records with the exact keys `date`, `ALLSKY_SFC_SW_DWN`, `T2M`, and `RH2M`:
+## Limitations
 
-```powershell
-& .\.venv\Scripts\python.exe -m sunreserve predict --observations .\observations.json
-```
+- **Latency:** NASA POWER solar values are historical estimates with reported latency of about 5–7 days, so they are not verified next-day inputs.
+- **Hypothetical school/system:** Demand, panel area, efficiency, derating, capacity, and buffer are assumptions rather than facility measurements.
+- **Simplified conversion:** Radiation becomes an electricity proxy without hourly generation, storage state, outages, or dispatch behavior.
+- **No field validation:** The prototype has not been evaluated against a school's meter, rooftop system, or operating reserve decisions.
 
-Dates must be seven consecutive ISO calendar dates ending on the issue date; future-dated
-observations are rejected. All fields must be finite, radiation nonnegative, and humidity
-between 0 and 100 percent. Model or input
-errors fail with an actionable message. NASA POWER historical observation dates do not
-establish release-time availability, and solar data latency makes these results unsuitable
-for an operational tomorrow forecast. All electricity and reserve assumptions remain
-hypothetical. The final run is local; no public demo bundle or deployment was created.
+## Reproduce and inspect
 
-Development model choice uses a predeclared primary-scenario score on the 2022 validation
-period: mean simulated shortfall plus mean excess prepared reserve, with equal 1:1 weights
-on the two energy quantities. This is a research ranking, not a cost function. The frozen
-validation manifest stores the score definition, weights, candidate scores, selected
-approach, scenario assumptions, and fitted model checksum. No new final-period claim is
-made from these validation scores.
-
-## Frozen 2023–2024 test results
-
-The frozen selection was **Ridge**, chosen on validation data only. The 2023-01-01 through
-2024-12-31 test has 731 eligible targets; six initial-window rows were excluded. Every
-approach is scored on the same dates. Forecast errors are solar radiation in
-`kWh/m²/day`:
-
-| Approach | MAE | RMSE | Bias (prediction − actual) |
-| --- | ---: | ---: | ---: |
-| Persistence | 0.5809 | 0.7836 | +0.0002 |
-| Training-only seasonal mean | 0.7283 | 0.9297 | +0.0822 |
-| Ridge (frozen on validation) | 0.5455 | 0.7140 | +0.0186 |
-
-Ridge has a modest forecast-error improvement against both radiation baselines. The
-primary hypothetical reserve scenario shows a different trade-off; the totals below are
-simulated energy over the 731-day test period, not savings or causal effects:
-
-| Approach | Shortfall (kWh) | Days with shortfall | Excess prepared reserve (kWh) |
-| --- | ---: | ---: | ---: |
-| Persistence | 274.00 | 150 | 274.00 |
-| Training-only seasonal mean | 570.10 | 219 | 22.76 |
-| Ridge | 385.00 | 178 | 111.35 |
-| Always prepare backup | 0.00 | 0 | 10,344.50 |
-
-No approach had a capacity-floor shortfall in the primary scenario. Ridge had more
-shortfall than persistence, while preparing less excess reserve, so the experiment does
-not show a reliability improvement over persistence. Across the fixed 27 sensitivity
-scenarios, Ridge's mean shortfall was lower than persistence in 2/27 and its mean excess
-was lower in 25/27; it was never lower on both measures. Against seasonal mean, Ridge's
-mean shortfall was lower in 27/27 and excess was lower in 7/27. See [the full write-up](docs/writeup.md)
-and [assumptions](docs/assumptions.md) for the interpretation and limitations.
-
-The report, prediction/decision tables, quality report, selection manifest, and run
-manifest are in `artifacts/runs/frozen-test-2023-24/`. The run manifest records artifact
-SHA-256 hashes, schema versions, environment, seed, counts, configuration and code hashes,
-source checksums, and that the test was inspected. In particular, the prediction file
-hash is `215f076fae47f558ad625c918cb72d4057e6d815f8244229e88232ab4acd079b`, and the
-decision-metrics hash is
-`f674ddccdb0336dd6a1147de5cc800395eee82d8c11a25a8e07f224dd63d2f28`.
-
-## Checks
+The frozen 2025 predictions, decision metrics, manifests, and descriptive report are in [`artifacts/runs/frozen-test-2025/`](artifacts/runs/frozen-test-2025/). Regenerate the README PNGs from those CSV files with the script below; it validates the target dates and derives the MAE and reserve comparison values from the source rows.
 
 ```powershell
-& .\.venv\Scripts\python.exe -m pytest
-& .\.venv\Scripts\ruff.exe check .
-& .\.venv\Scripts\ruff.exe format --check .
+& .\.venv\Scripts\python.exe scripts\generate_readme_charts.py
 ```
 
-Current clean-environment verification used Python 3.13.12: installation and `pip check`
-were clean, the full suite passed 133 tests in 44.05s, Ruff check was clean, and Ruff format
-reported 33 files already formatted. Browser acceptance covered both modes. In fresh
-prediction, changing daily radiation from 5.7787 to 7.7787 changed the prediction, and
-changing hypothetical demand from 15 to 25 changed planned reserve. Historical date selection
-from 2022-01-01 to 2022-01-02 worked. Charts, units, model identity, baseline comparisons,
-assumptions, failure examples, and missing-artifact behavior were verified. Invalid-input
-rejection is covered by automated tests; it was not directly exercised in the browser. The
-older replay milestone had 113 passing tests before fresh inference was added. The copied
-selection manifest and eight companion files in `frozen-test-2023-24` remain unchanged; the
-current validation manifest was intentionally regenerated, and the other five validation
-files remain unchanged.
+For split design, baselines, and interpretation, read the [method and results](docs/writeup.md), [data provenance](docs/data_sources.md), [reserve assumptions](docs/assumptions.md), and [AI credits](#credits). The [implementation plan](docs/implementation_plan.md) records the scope and verification history. The source is the NASA POWER Daily API; these plots use gridded radiation estimates, not measured school generation.
 
-## Separate 2025 holdout replay
+## Credits
 
-The opt-in command `python -m sunreserve.holdout_2025_cli evaluate-2025` applies the frozen
-training-only Ridge bundle and compares it with persistence and the training-only seasonal
-mean on common 2025 targets. It refuses a mismatched selection-manifest or model digest and
-never overwrites an existing run ID. It records the 2025-only predictions, radiation metrics,
-hypothetical reserve arithmetic, source quality/provenance, hashes, and a descriptive report.
-The `2023–2024` rows are only prior-date feature context and are not scored. No model is fit,
-selected, or tuned on the 2025 period.
-
-This is the command used for the one-time frozen replay. To reproduce it in a clean copy,
-first verify the exact selection and model digests and confirm that the destination run ID is
-absent. The current workspace already contains `frozen-test-2025`; the runner refuses to
-overwrite it.
-
-```powershell
-& .\.venv\Scripts\python.exe -m sunreserve.holdout_2025_cli evaluate-2025 `
-  --manifest-sha256 9cd60c7ab8b4e41078c1bf44d6698178334e6b9b6dba3d01a88f4e9a9d097fff `
-  --model-sha256 40a11e5119b7838d10a4a7ef7cc5bbf564998759b3954d4b865fdfe3f392b61f `
-  --run-id untouched-2025-reviewed
-```
-
-Synthetic-only integration coverage exercises the command's digest and overwrite guards,
-date alignment, common baseline dates, reserve-score arithmetic, and artifact checksums. The
-one-time evaluation has been run and is saved under
-`artifacts/runs/frozen-test-2025/`. It contains 365/365 common targets from 2025-01-01 through
-2025-12-31, with zero exclusions and zero missing source days. The run scored no 2023–2024
-targets; those dates were used only as earlier feature context. The frozen model is
-`sunreserve.ridge.train-only.v1` (2,185 training rows through 2021-12-31; model SHA-256
-`40a11e5119b7838d10a4a7ef7cc5bbf564998759b3954d4b865fdfe3f392b61f`). The frozen validation
-selection manifest SHA-256 is
-`9cd60c7ab8b4e41078c1bf44d6698178334e6b9b6dba3d01a88f4e9a9d097fff`; model selection used
-2022 validation only.
-
-| Approach | Radiation MAE (kWh/m²/day) | Radiation RMSE (kWh/m²/day) | Mean simulated shortfall (kWh/day) | Mean excess reserve (kWh/day) | Equal-weight score (kWh/day) |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Ridge | 0.5387915 | 0.7247856 | 0.607825 | 0.179572 | 0.787398 |
-| Persistence | 0.5885584 | 0.8145780 | 0.437777 | 0.433656 | 0.871433 |
-| Training-only seasonal mean | 0.7119433 | 0.9344102 | 0.881887 | 0.045961 | 0.927848 |
-
-Ridge had lower radiation MAE than both simple baselines. Its simulated mean shortfall was
-higher than persistence, while its predeclared score—mean shortfall plus mean excess prepared
-reserve with equal 1:1 energy weights—was lower than both baselines. This ranking is only under
-that explicitly hypothetical energy score, not a cost or reliability guarantee. Reserve values
-are simulated electricity quantities from a radiation proxy and hypothetical panel area,
-efficiency, derating, demand, capacity, and buffer. The replay is descriptive historical
-research; NASA POWER solar latency means these inputs are not available as verified next-day
-live data. Do not rerun this immutable run ID or tune against the holdout.
-
-## Data and credits
-
-The source is the [NASA POWER Daily API](https://power.larc.nasa.gov/docs/services/api/temporal/daily/),
-Renewable Energy community, at the Bengaluru reference coordinate. The 2016–2024 development
-and historical replay source covers 3,288 calendar days; the three variables have no missing
-values. A separate 2025 snapshot supports the untouched replay. See [data sources](docs/data_sources.md)
-for units, provenance, terms, and why historical availability does not establish day-ahead
-operational availability.
-
-The project uses pandas, NumPy, scikit-learn Ridge and preprocessing tools, and Streamlit.
-AI assistance: Luna implemented the project; Codex planned, coordinated, and independently
-reviewed and validated it; Jev provided advisory plan and code reviews. Committing,
-publishing, public links, video upload, and hackathon submission were not part of this
-implementation; no deployment or public demo is claimed.
+Luna implemented the project and visuals; Codex planned and independently reviewed it; Jev supplied advisory reviews. Python, pandas, NumPy, scikit-learn, Streamlit, and Pillow support the model and figures. The app runs locally; no hosted service or field deployment is claimed.
