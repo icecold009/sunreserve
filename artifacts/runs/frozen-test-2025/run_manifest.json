@@ -1,0 +1,141 @@
+{
+  "artifact_schemas": {
+    "data_quality.json": 1,
+    "decision_metrics.csv": 1,
+    "decision_predictions.csv": 1,
+    "forecast_metrics.json": 1,
+    "predictions.csv": 1,
+    "report.md": 1,
+    "selection_manifest.json": 2
+  },
+  "artifact_sha256": {
+    "data_quality.json": "2dbeae8b915411675625e6960457a39d3dc085c9b2cc4a84e5f1e8be67d1961c",
+    "decision_metrics.csv": "9b7565b6890f69378be8c9137387e26a1974691eee7b61fd9bd8e789840badf3",
+    "decision_predictions.csv": "6e0eade4560fb8b039e6839f02ceab1904beae0234822cf09f6ae9d7948441c3",
+    "forecast_metrics.json": "2822a00741a5a97c95020bc5e5299208a4f6b8e663b987e840d7a98d5258448c",
+    "predictions.csv": "8f1881a57cd1fcf639435b187580a5162851a3a37040541c297a240a85c9c4af",
+    "report.md": "c09128555f824147699334c7c19210290d92e15f12ff64c31689fbb4df30cbaa",
+    "selection_manifest.json": "9cd60c7ab8b4e41078c1bf44d6698178334e6b9b6dba3d01a88f4e9a9d097fff"
+  },
+  "artifact_type": "sunreserve_untouched_2025_holdout",
+  "code_revision": "uncommitted",
+  "created_utc": "2026-11-14T18:14:54.425953+00:00",
+  "decision_scenario": {
+    "buffer_kwh": 0.0,
+    "capacity_kwh": 15.0,
+    "demand_kwh": 15.0,
+    "derating": 0.8,
+    "efficiency": 0.2,
+    "panel_area_m2": 20.0
+  },
+  "decision_selection": {
+    "excess_prepared_reserve_weight": 1.0,
+    "interpretation": "Research ranking only. Equal energy weights are hypothetical and do not represent costs, reliability guarantees, or an operational policy.",
+    "objective": "mean simulated shortfall kWh/day + mean excess prepared reserve kWh/day; equal 1:1 energy weights, not monetary costs",
+    "scenario_id": "primary",
+    "score_name": "mean_shortfall_plus_mean_excess_kwh_day",
+    "scores": {
+      "persistence": 0.9538875616438356,
+      "ridge": 0.8418041097872276,
+      "seasonal_mean": 1.0800129762851667
+    },
+    "selected_model": "ridge",
+    "selection_partition": "validation",
+    "selection_target_period": [
+      "2022-01-01",
+      "2022-12-31"
+    ],
+    "shortfall_weight": 1.0,
+    "tie_order": [
+      "persistence",
+      "seasonal_mean",
+      "ridge"
+    ]
+  },
+  "environment": {
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "python": "3.13.12",
+    "scikit_learn": "1.9.1"
+  },
+  "frozen_development_code_hashes": {
+    "cli": "14d7c7380ec6327b89592e5cccf53ca4f83a468cf457c1a024dfee2fba4af2b0",
+    "config": "7c4175d37b8abc8a87ec066a6ca00cff46414f1c27e2d1b073fd954d4c1dedbd",
+    "data": "1f4bcd9af05f657f0d2cb85d440652788f7791e24fbdbb0c0551723408b5b435",
+    "decision": "761e592f2f9299e6c8fa2da73c4b7a439f8b614014b768bf595a7aab0c1b4893",
+    "evaluate": "8e13cbbedba7ecbdde5e99aacf661a1c2faa0e3b010fa42d305e28e1bb923053",
+    "features": "4d3ee1669d7b7d08a2adf61ee291947cdfdccad10a0ccd9cd539d0e67a852a26",
+    "inference": "507d8b0807f40fe3c377e1f11fdda7ac7f7955ab6c662ac41a50c2a9fbba580d",
+    "train": "afeb28c34ef1e33b927b7fae741924cea6939bfa0da712721c9a9f8948c7f7ad"
+  },
+  "historical_context_sha256": "b68d96ba070429161be7139d6a12e5f34004c5cc7778bd23bb820d51e555bb64",
+  "holdout_configuration": {
+    "allowed_models": [
+      "persistence",
+      "seasonal_mean",
+      "ridge"
+    ],
+    "community": "RE",
+    "conversion_efficiency": 0.2,
+    "daily_demand_kwh": 15.0,
+    "derating_factor": 0.8,
+    "end_date": "2025-12-31",
+    "latitude": 12.9716,
+    "longitude": 77.5946,
+    "low_solar_quantile": 0.25,
+    "panel_area_m2": 20.0,
+    "parameters": [
+      "ALLSKY_SFC_SW_DWN",
+      "T2M",
+      "RH2M"
+    ],
+    "primary_metric": "mae",
+    "random_seed": 42,
+    "reserve_buffer_kwh": 0.0,
+    "reserve_cap_kwh": 15.0,
+    "ridge_alpha": 1.0,
+    "source": "NASA POWER Daily API",
+    "start_date": "2025-01-01",
+    "test_start": "2023-01-01",
+    "time_standard": "UTC",
+    "training_end": "2021-12-31",
+    "validation_end": "2022-12-31",
+    "validation_start": "2022-01-01"
+  },
+  "holdout_configuration_sha256": "b1ff3b424d05466b7dbd4f5f127d78526b494352b4ac0251def7fc2cfa70eaea",
+  "holdout_evaluation_code_hashes": {
+    "holdout_2025": "06f7da75567bfc3f1dc39ff4eefc267e766a126f35c1325598c9772d3fbe3435",
+    "holdout_2025_cli": "9b766aa76f73c0e443a82e59004efcb09020779a07d75b379f16f71e65f0c460"
+  },
+  "model_bundle_sha256": "40a11e5119b7838d10a4a7ef7cc5bbf564998759b3954d4b865fdfe3f392b61f",
+  "model_id": "sunreserve.ridge.train-only.v1",
+  "model_training_rows": 2185,
+  "model_training_split": "train",
+  "model_training_target_period": [
+    "2016-01-08",
+    "2021-12-31"
+  ],
+  "no_2025_tuning_or_selection": true,
+  "partition": "untouched_2025_holdout",
+  "results_are_descriptive": true,
+  "row_counts": {
+    "2023_2024_targets_scored": 0,
+    "eligible_2025_targets": 365,
+    "excluded_2025_targets": 0
+  },
+  "run_id": "frozen-test-2025",
+  "schema_version": 1,
+  "selection_manifest_sha256": "9cd60c7ab8b4e41078c1bf44d6698178334e6b9b6dba3d01a88f4e9a9d097fff",
+  "source_snapshot": {
+    "path": "data/raw/power_daily_sunreserve_2025_holdout.json",
+    "provenance_path": "data/raw/power_daily_sunreserve_2025_holdout.meta.json",
+    "provenance_sha256": "4c5545975aede101c3fbe9e5d3b19ee20c692505d564cd72f86196549040bf08",
+    "request_url": "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=ALLSKY_SFC_SW_DWN%2CT2M%2CRH2M&community=RE&longitude=77.5946&latitude=12.9716&start=20250101&end=20251231&format=JSON&time-standard=UTC",
+    "retrieved_utc": "2026-11-14T17:40:06.497302+00:00",
+    "sha256": "c679c980786c4dc26a69153513a76eeba116d2148cbc728390278a204c10af41"
+  },
+  "target_period": [
+    "2025-01-01",
+    "2025-12-31"
+  ]
+}

@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+htmlcov/
+build/
+dist/
+*.log
+logs/
+
+# Environments and local configuration
+.venv/
+venv*/
+.env
+.env.*
+!.env.example
+secrets/
+**/secrets/
+*.pem
+*.key
+
+# Curated public data deliverables; keep all other raw/processed files local.
+data/raw/**
+!data/raw/.gitkeep
+!data/raw/power_daily_sunreserve.json
+!data/raw/power_daily_sunreserve.meta.json
+!data/raw/power_daily_sunreserve_2025_holdout.json
+!data/raw/power_daily_sunreserve_2025_holdout.meta.json
+data/processed/**
+!data/processed/.gitkeep
+!data/processed/daily.csv
+!data/processed/quality_report.json
+
+# Curated reproducibility artifacts; arbitrary generated runs remain local.
+artifacts/**
+!artifacts/.gitkeep
+!artifacts/validation/
+!artifacts/validation/**
+!artifacts/runs/
+!artifacts/runs/frozen-test-2023-24/
+!artifacts/runs/frozen-test-2023-24/**
+!artifacts/runs/frozen-test-2025/
+!artifacts/runs/frozen-test-2025/**
+!.gitkeep
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

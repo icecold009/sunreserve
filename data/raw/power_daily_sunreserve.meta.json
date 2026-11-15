@@ -1,0 +1,31 @@
+{
+  "missing_value_marker": -999.0,
+  "reported_location": {
+    "latitude": 12.972,
+    "longitude": 77.595
+  },
+  "request_parameters": {
+    "community": "RE",
+    "end_date": "2024-12-31",
+    "format": "JSON",
+    "latitude": 12.9716,
+    "longitude": 77.5946,
+    "parameters": [
+      "ALLSKY_SFC_SW_DWN",
+      "T2M",
+      "RH2M"
+    ],
+    "start_date": "2016-01-01",
+    "time_standard": "UTC"
+  },
+  "request_url": "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=ALLSKY_SFC_SW_DWN%2CT2M%2CRH2M&community=RE&longitude=77.5946&latitude=12.9716&start=20160101&end=20241231&format=JSON&time-standard=UTC",
+  "retrieved_utc": "2026-11-14T12:17:44.690765+00:00",
+  "schema_version": 1,
+  "sha256": "925dde6e86766df7f0f65c91d77947e7306068892fd02ddec0dc5b891d28c908",
+  "source": "NASA POWER Daily API",
+  "units": {
+    "ALLSKY_SFC_SW_DWN": "kW-hr/m^2/day",
+    "RH2M": "%",
+    "T2M": "C"
+  }
+}

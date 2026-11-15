@@ -1,0 +1,81 @@
+{
+  "calendar_days": 3288,
+  "complete_case_days": 3288,
+  "excluded_dates": [],
+  "excluded_days": 0,
+  "exclusion_policy": "retain the complete calendar and mark source fill values or absent dates as missing; exclude rows with any missing required value from supervised examples; do not interpolate or use future observations to fill gaps",
+  "missing_counts_by_variable": {
+    "ALLSKY_SFC_SW_DWN": 0,
+    "RH2M": 0,
+    "T2M": 0
+  },
+  "missing_counts_by_year": {
+    "2016": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2017": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2018": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2019": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2020": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2021": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2022": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2023": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    },
+    "2024": {
+      "ALLSKY_SFC_SW_DWN": 0,
+      "RH2M": 0,
+      "T2M": 0
+    }
+  },
+  "missing_dates_by_variable": {
+    "ALLSKY_SFC_SW_DWN": [],
+    "RH2M": [],
+    "T2M": []
+  },
+  "missing_value_marker": -999.0,
+  "prepared_daily_csv_sha256": "b68d96ba070429161be7139d6a12e5f34004c5cc7778bd23bb820d51e555bb64",
+  "raw_sha256": "925dde6e86766df7f0f65c91d77947e7306068892fd02ddec0dc5b891d28c908",
+  "requested_end": "2024-12-31",
+  "requested_location": {
+    "latitude": 12.9716,
+    "longitude": 77.5946
+  },
+  "requested_start": "2016-01-01",
+  "schema_version": 2,
+  "source": "NASA POWER Daily API",
+  "time_standard": "UTC",
+  "units": {
+    "ALLSKY_SFC_SW_DWN": "kW-hr/m^2/day",
+    "RH2M": "%",
+    "T2M": "C"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "calendar_rows": 365,
+  "missing_by_parameter": {
+    "ALLSKY_SFC_SW_DWN": 0,
+    "RH2M": 0,
+    "T2M": 0
+  },
+  "missing_value_marker": -999.0,
+  "reported_location": {
+    "latitude": 12.972,
+    "longitude": 77.595
+  },
+  "request_parameters": {
+    "community": "RE",
+    "end_date": "2025-12-31",
+    "format": "JSON",
+    "latitude": 12.9716,
+    "longitude": 77.5946,
+    "parameters": [
+      "ALLSKY_SFC_SW_DWN",
+      "T2M",
+      "RH2M"
+    ],
+    "start_date": "2025-01-01",
+    "time_standard": "UTC"
+  },
+  "request_url": "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=ALLSKY_SFC_SW_DWN%2CT2M%2CRH2M&community=RE&longitude=77.5946&latitude=12.9716&start=20250101&end=20251231&format=JSON&time-standard=UTC",
+  "retrieved_utc": "2026-11-14T17:40:06.497302+00:00",
+  "rights_note": "NASA POWER data may be used/downloaded without restriction per the AWS Open Data Registry; cite NASA POWER. The POWER referencing guide requests notification when data is transmitted to other researchers; that courtesy request is documented but no email was sent.",
+  "schema_version": 2,
+  "service_version": "v2.10.3",
+  "sha256": "c679c980786c4dc26a69153513a76eeba116d2148cbc728390278a204c10af41",
+  "source": "NASA POWER Daily API",
+  "units": {
+    "ALLSKY_SFC_SW_DWN": "kW-hr/m^2/day",
+    "RH2M": "%",
+    "T2M": "C"
+  }
+}

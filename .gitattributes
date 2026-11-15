@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.parquet binary
+data/raw/power_daily_sunreserve_2025_holdout.meta.json -text -eol whitespace=cr-at-eol

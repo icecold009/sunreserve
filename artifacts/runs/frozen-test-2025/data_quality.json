@@ -1,0 +1,38 @@
+{
+  "calendar_days": 365,
+  "complete_case_days": 365,
+  "context_period_used_for_lags_only": [
+    "2016-01-01",
+    "2024-12-31"
+  ],
+  "eligible_targets": 365,
+  "excluded_target_count": 0,
+  "excluded_targets": [],
+  "missing_counts_by_variable": {
+    "ALLSKY_SFC_SW_DWN": 0,
+    "RH2M": 0,
+    "T2M": 0
+  },
+  "raw_sha256": "c679c980786c4dc26a69153513a76eeba116d2148cbc728390278a204c10af41",
+  "reported_location": {
+    "latitude": 12.972,
+    "longitude": 77.595
+  },
+  "requested_location": {
+    "latitude": 12.9716,
+    "longitude": 77.5946
+  },
+  "retrieved_utc": "2026-11-14T17:40:06.497302+00:00",
+  "schema_version": 1,
+  "source": "NASA POWER Daily API",
+  "source_period": [
+    "2025-01-01",
+    "2025-12-31"
+  ],
+  "time_standard": "UTC",
+  "units": {
+    "ALLSKY_SFC_SW_DWN": "kW-hr/m^2/day",
+    "RH2M": "%",
+    "T2M": "C"
+  }
+}

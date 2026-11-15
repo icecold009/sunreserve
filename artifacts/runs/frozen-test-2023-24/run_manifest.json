@@ -1,0 +1,89 @@
+{
+  "artifact_schemas": {
+    "assumptions.md": 1,
+    "data_quality.json": 1,
+    "decision_metrics.csv": 1,
+    "decision_predictions.csv": 1,
+    "forecast_metrics.json": 1,
+    "predictions.csv": 1,
+    "selection_manifest.json": 1
+  },
+  "artifact_sha256": {
+    "assumptions.md": "fa1cea1a8ed42f9ea0c3129ba33e14698cb58500bac26f144c04132830867688",
+    "data_quality.json": "e63b8b7ab16cc312723c0470c8ee78f686c3059a86dbfbbde4469ceb0c60c199",
+    "decision_metrics.csv": "f674ddccdb0336dd6a1147de5cc800395eee82d8c11a25a8e07f224dd63d2f28",
+    "decision_predictions.csv": "660e35c7dd26d3ef890638a8c352f4a2276940d9e3468f89f9ba4467e3e193a3",
+    "forecast_metrics.json": "b2756239b54dbbf02384229b4c383557e39b65f053368e6fc34a90e1c9cb0c79",
+    "predictions.csv": "215f076fae47f558ad625c918cb72d4057e6d815f8244229e88232ab4acd079b",
+    "selection_manifest.json": "d4e4d2f86ba3ac795d5e33adb313a0bb8fc64b438aaafe4a86d6af4670e92653"
+  },
+  "artifact_type": "sunreserve_finalized_historical_replay",
+  "code_revision": "uncommitted",
+  "configuration_sha256": "4ae54390888de724abc6b24b959a988b53b6344ed0cbbfeb7a31d43af9692833",
+  "created_utc": "2026-11-14T17:04:50.482341+00:00",
+  "current_code_hashes": {
+    "cli": "39da85b6a763ae82e243609d98f60888f367021f978997c7ee8cd3d5e711deca",
+    "config": "7c4175d37b8abc8a87ec066a6ca00cff46414f1c27e2d1b073fd954d4c1dedbd",
+    "data": "cf9e50b68c43521e8051e1d879fa1b2cfa15926eb6fa54a60e0735bd8019476f",
+    "decision": "ae1d0ef3a86c2eca61e1cfc65be5fff66eed1ba3cc19d7c5caeac48bda56d4bc",
+    "evaluate": "515c79d2ab7228ffef317ba21f7ea0b4352d879cbce33a710a08f7480212d7c8",
+    "features": "eff57668b25f0c68357361e4c0ea6b24dc0e67e644a3b58281095fc093442676",
+    "train": "afeb28c34ef1e33b927b7fae741924cea6939bfa0da712721c9a9f8948c7f7ad"
+  },
+  "environment": {
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "python": "3.13.12",
+    "scikit_learn": "1.9.1",
+    "streamlit": "1.67.0"
+  },
+  "feature_schema": [
+    "radiation_today_kwh_m2_day",
+    "radiation_lag_1_kwh_m2_day",
+    "radiation_lag_2_kwh_m2_day",
+    "radiation_lag_3_kwh_m2_day",
+    "radiation_trailing_7d_mean_kwh_m2_day",
+    "temperature_today_c",
+    "relative_humidity_today_pct",
+    "target_month_sin",
+    "target_month_cos"
+  ],
+  "partition": "test",
+  "public_demo_bundle": {
+    "reason": "publication and upload are outside this implementation task",
+    "status": "not_created"
+  },
+  "random_seed": 42,
+  "row_counts": {
+    "test": 731,
+    "test_excluded": 6,
+    "train": 2185,
+    "validation": 365
+  },
+  "run_id": "frozen-test-2023-24",
+  "schema_version": 1,
+  "selected_model_frozen_on_validation": "ridge",
+  "selection_manifest_sha256": "d4e4d2f86ba3ac795d5e33adb313a0bb8fc64b438aaafe4a86d6af4670e92653",
+  "source_checksums": {
+    "prepared_daily_csv_sha256": "b68d96ba070429161be7139d6a12e5f34004c5cc7778bd23bb820d51e555bb64",
+    "prepared_development_rows_sha256": "403cd834959b0a6933fbd4898c23f8a1fb9936864cdeef396e1f31fe9b763fc6",
+    "quality_report_sha256": "e63b8b7ab16cc312723c0470c8ee78f686c3059a86dbfbbde4469ceb0c60c199",
+    "raw_response_sha256": "925dde6e86766df7f0f65c91d77947e7306068892fd02ddec0dc5b891d28c908"
+  },
+  "target_periods": {
+    "test": [
+      "2023-01-01",
+      "2024-12-31"
+    ],
+    "training": [
+      "2016-01-01",
+      "2021-12-31"
+    ],
+    "validation": [
+      "2022-01-01",
+      "2022-12-31"
+    ]
+  },
+  "test_inspected": true,
+  "test_inspected_utc": "2026-11-14T17:04:50.482358+00:00"
+}

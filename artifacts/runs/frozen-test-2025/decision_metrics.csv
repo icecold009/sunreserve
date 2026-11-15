@@ -1,0 +1,4 @@
+scenario_id,approach,sample_count,total_simulated_shortfall_kwh,mean_simulated_shortfall_kwh_day,simulated_shortfall_day_count,simulated_shortfall_day_share,total_excess_prepared_reserve_kwh,mean_excess_prepared_reserve_kwh_day,decision_score_name,mean_shortfall_plus_mean_excess_kwh_day,shortfall_weight,excess_prepared_reserve_weight,total_capacity_limited_shortfall_kwh
+primary,persistence,365,159.78847999999994,0.4377766575342464,78,0.2136986301369863,158.28447999999992,0.4336561095890409,mean_shortfall_plus_mean_excess_kwh_day,0.8714327671232873,1.0,1.0,0.0
+primary,seasonal_mean,365,321.8886114408601,0.8818866066872879,128,0.3506849315068493,16.775864774193522,0.045961273353954855,mean_shortfall_plus_mean_excess_kwh_day,0.9278478800412427,1.0,1.0,0.0
+primary,ridge,365,221.8562967293836,0.6078254704914619,108,0.2958904109589041,65.54390719171435,0.17957234847045028,mean_shortfall_plus_mean_excess_kwh_day,0.7873978189619122,1.0,1.0,0.0

@@ -1,0 +1,97 @@
+{
+  "artifact_type": "sunreserve_fitted_ridge_model",
+  "availability_note": "This model uses historical observation dates; source release timestamps were not verified, so this artifact does not establish operational day-ahead availability.",
+  "feature_columns": [
+    "radiation_today_kwh_m2_day",
+    "radiation_lag_1_kwh_m2_day",
+    "radiation_lag_2_kwh_m2_day",
+    "radiation_lag_3_kwh_m2_day",
+    "radiation_trailing_7d_mean_kwh_m2_day",
+    "temperature_today_c",
+    "relative_humidity_today_pct",
+    "target_month_sin",
+    "target_month_cos"
+  ],
+  "model_id": "sunreserve.ridge.train-only.v1",
+  "preprocessing": {
+    "imputation": "median fitted on training rows",
+    "imputer_statistics": [
+      5.4684,
+      5.4698,
+      5.4718,
+      5.4718,
+      5.374728571428571,
+      23.56,
+      71.31,
+      0.0,
+      -1.8369701987210297e-16
+    ],
+    "scaler_mean": [
+      5.378886590389016,
+      5.379331990846683,
+      5.3795810068649885,
+      5.3798144164759725,
+      5.379733579601177,
+      24.005816933638442,
+      67.58540503432494,
+      -0.00302411677555457,
+      -0.007167164319379651
+    ],
+    "scaler_scale": [
+      1.1729682114879088,
+      1.1728186263887965,
+      1.1728503243598185,
+      1.1729241753124708,
+      0.9733200199102682,
+      2.8423188366600787,
+      16.19575995684223,
+      0.7080705137409679,
+      0.7060988840410021
+    ],
+    "scaling": "standard scaling fitted on training rows"
+  },
+  "ridge": {
+    "coefficients": [
+      0.6394820171116001,
+      0.007706053899320165,
+      0.013972226860635052,
+      0.016466404088353204,
+      0.08181146691846253,
+      -0.023399557734062087,
+      -0.179121275826722,
+      0.11782842066378685,
+      -0.003994616858027569
+    ],
+    "intercept": 5.378085308924485,
+    "prediction_clip": "max(0, prediction)"
+  },
+  "schema_version": 1,
+  "seasonal_mean_baseline": {
+    "monthly_means": {
+      "1": 5.257658659217877,
+      "10": 5.000338172043011,
+      "11": 4.454038333333333,
+      "12": 4.544680107526882,
+      "2": 6.295091176470589,
+      "3": 6.625844086021505,
+      "4": 6.586241111111112,
+      "5": 6.1165295698924735,
+      "6": 5.268184444444445,
+      "7": 4.745642473118279,
+      "8": 4.695331720430107,
+      "9": 5.015724444444444
+    },
+    "training_global_mean": 5.378085308924485
+  },
+  "target": "next-calendar-day NASA POWER daily solar radiation",
+  "target_units": "kWh/m^2/day",
+  "training": {
+    "random_seed": 42,
+    "ridge_alpha": 1.0,
+    "row_count": 2185,
+    "split": "train",
+    "target_end": "2021-12-31",
+    "target_start": "2016-01-08",
+    "training_end_limit": "2021-12-31"
+  }
+}
