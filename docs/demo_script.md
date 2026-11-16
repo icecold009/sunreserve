@@ -8,4 +8,3 @@
 | 1:45-2:00 | **Limitation and next step.** “NASA POWER is a historical gridded estimate, not verified issue-time input or school meter data. Our reserve conversion is hypothetical and the app has no operational control. Next, we would check input availability and evaluate against measured site data.” |
 
 The example inputs are historical; this demo does not show a verified live next-day forecast.
-

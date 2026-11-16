@@ -31,4 +31,3 @@ Verify that forecast inputs are available at the time a decision would be made. 
 ## Sources and credits
 
 Dataset: [NASA POWER Daily API](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) and [data provenance](data_sources.md). Model and libraries: [scikit-learn Ridge](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html), [pandas](https://pandas.pydata.org/docs/), [NumPy](https://numpy.org/doc/), and [Streamlit](https://docs.streamlit.io/). Code: [public GitHub repository](https://github.com/icecold009/sunreserve/tree/feature/veritas-sunreserve). No pretrained model or tutorial code was used. Luna (OpenAI) implemented the project and visuals; [Codex](https://openai.com/codex/) planned, coordinated, reviewed, and validated it; [Jev by TypeSafe AI](https://typesafe.ai/) provided advisory reviews. These tools did not supply the data or validate real-world performance.
-
