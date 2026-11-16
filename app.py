@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from pathlib import Path
 
@@ -33,6 +35,137 @@ APPROACH_LABELS = {
     "always_prepare_backup": "Always prepare backup reference",
 }
 MOBILE_METRIC_VALUE_MAX_CHARS = 13
+PREDICTION_STATE_KEY = "sunreserve_last_prediction"
+FROZEN_2025_FILES = ("predictions.csv", "decision_metrics.csv", "forecast_metrics.json")
+
+
+class Frozen2025ArtifactsError(RuntimeError):
+    """Raised when the committed frozen 2025 result artifacts cannot be verified."""
+
+
+def _load_frozen_2025(project_root: Path) -> dict[str, object]:
+    """Read the frozen result files and verify their manifest-bound checksums."""
+    run_dir = project_root / "artifacts" / "runs" / "frozen-test-2025"
+    manifest_path = run_dir / "run_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        file_bytes = {name: (run_dir / name).read_bytes() for name in FROZEN_2025_FILES}
+    except (OSError, json.JSONDecodeError) as error:
+        raise Frozen2025ArtifactsError(f"Frozen 2025 results are not available: {error}") from error
+    checksums = manifest.get("artifact_sha256", {})
+    for name, payload in file_bytes.items():
+        expected = checksums.get(name)
+        actual = hashlib.sha256(payload).hexdigest()
+        if not expected or actual != expected:
+            raise Frozen2025ArtifactsError(f"Frozen 2025 artifact checksum mismatch: {name}")
+    try:
+        return {
+            "manifest": manifest,
+            "predictions": pd.read_csv(run_dir / "predictions.csv", parse_dates=["target_date"]),
+            "decisions": pd.read_csv(run_dir / "decision_metrics.csv"),
+            "forecast_metrics": json.loads(file_bytes["forecast_metrics.json"].decode("utf-8")),
+        }
+    except (UnicodeDecodeError, ValueError, pd.errors.ParserError) as error:
+        raise Frozen2025ArtifactsError(f"Frozen 2025 results cannot be read: {error}") from error
+
+
+def _show_frozen_2025(project_root: Path) -> None:
+    """Show a read-only, separately labeled comparison of the untouched 2025 holdout."""
+    st.title("Frozen 2025 results")
+    try:
+        artifacts = _load_frozen_2025(project_root)
+    except Frozen2025ArtifactsError as error:
+        st.error(str(error))
+        return
+
+    manifest = artifacts["manifest"]
+    predictions = artifacts["predictions"]
+    decisions = artifacts["decisions"]
+    forecast_metrics = artifacts["forecast_metrics"]
+    st.warning(
+        "Frozen historical holdout · Applied the development-frozen model and baselines to "
+        "2025 without refitting or selection on these dates. This is descriptive research, "
+        "not an operational forecast or measured facility performance."
+    )
+    st.caption(
+        f"{len(predictions)} common targets · {predictions['target_date'].min():%Y-%m-%d} to "
+        f"{predictions['target_date'].max():%Y-%m-%d} · target: NASA POWER model/satellite-derived "
+        "solar radiation (kWh/m²/day)."
+    )
+
+    metric_rows = []
+    metrics = forecast_metrics["metrics"]
+    for approach in ("ridge", "persistence", "seasonal_mean"):
+        metric_rows.append(
+            {
+                "Approach": APPROACH_LABELS.get(approach, approach),
+                "Radiation MAE (kWh/m²/day)": metrics[approach]["mae"],
+                "Radiation RMSE (kWh/m²/day)": metrics[approach]["rmse"],
+            }
+        )
+    forecast_comparison = pd.DataFrame(metric_rows)
+    st.subheader("Frozen forecast accuracy and baseline comparison")
+    st.dataframe(forecast_comparison, hide_index=True, width="stretch")
+    st.bar_chart(forecast_comparison.set_index("Approach")["Radiation MAE (kWh/m²/day)"])
+
+    primary = decisions.loc[decisions["scenario_id"] == "primary"].copy()
+    ridge_shortfall = float(
+        primary.loc[primary["approach"] == "ridge", "mean_simulated_shortfall_kwh_day"].iloc[0]
+    )
+    persistence_shortfall = float(
+        primary.loc[primary["approach"] == "persistence", "mean_simulated_shortfall_kwh_day"].iloc[
+            0
+        ]
+    )
+    primary["Approach"] = primary["approach"].map(APPROACH_LABELS)
+    primary = primary.rename(
+        columns={
+            "mean_simulated_shortfall_kwh_day": "Mean simulated shortfall (kWh/day)",
+            "mean_excess_prepared_reserve_kwh_day": "Mean excess prepared reserve (kWh/day)",
+            "mean_shortfall_plus_mean_excess_kwh_day": "Illustrative equal-weight score (kWh/day)",
+        }
+    )
+    st.subheader("Simulated reserve trade-off · primary frozen scenario")
+    st.caption(
+        "Assumptions: 15 kWh/day demand, 15 kWh reserve capacity, 20 m² panel area, "
+        "20% conversion efficiency, 0.80 derating, and no buffer."
+    )
+    st.dataframe(
+        primary[
+            [
+                "Approach",
+                "Mean simulated shortfall (kWh/day)",
+                "Mean excess prepared reserve (kWh/day)",
+                "Illustrative equal-weight score (kWh/day)",
+            ]
+        ],
+        hide_index=True,
+        width="stretch",
+    )
+    st.markdown(
+        f"Ridge radiation MAE is **{metrics['ridge']['mae']:.3f}**, compared with "
+        f"**{metrics['persistence']['mae']:.3f}** for persistence and "
+        f"**{metrics['seasonal_mean']['mae']:.3f}** for the training-only seasonal mean. "
+        f"Ridge's simulated shortfall is **{ridge_shortfall:.3f} kWh/day**, higher than "
+        f"persistence at **{persistence_shortfall:.3f} kWh/day**. The equal-weight "
+        "shortfall-plus-excess score is hypothetical; it is not a measured cost or "
+        "reliability target."
+    )
+    st.line_chart(
+        predictions.set_index("target_date")[
+            [
+                "target_radiation_kwh_m2_day",
+                "ridge_prediction_kwh_m2_day",
+                "persistence_prediction_kwh_m2_day",
+                "seasonal_mean_prediction_kwh_m2_day",
+            ]
+        ],
+        y_label="Solar radiation (kWh/m²/day)",
+    )
+    st.caption(
+        f"Frozen run {manifest.get('run_id', 'frozen-test-2025')} · source artifact files "
+        "were checksum-verified before display."
+    )
 
 
 def _format_kwh_day(value: float) -> str:
@@ -328,6 +461,111 @@ def _edited_window_frame(edited: pd.DataFrame) -> pd.DataFrame:
     return observation_frame_from_records(records)
 
 
+def _snapshot_value(value: object) -> object:
+    """Convert editor values into stable JSON-safe values without hiding invalid edits."""
+    if value is None or pd.isna(value):
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if hasattr(value, "item"):
+        value = value.item()
+    if isinstance(value, (int, float)):
+        return value
+    return str(value)
+
+
+def _input_snapshot(edited: pd.DataFrame) -> list[dict[str, object]]:
+    """Capture the exact current observation rows, including incomplete editor values."""
+    return [
+        {str(key): _snapshot_value(value) for key, value in row.items()}
+        for row in edited.to_dict(orient="records")
+    ]
+
+
+def _prediction_fingerprint(
+    observations: list[dict[str, object]],
+    assumptions: dict[str, float],
+    model_identity: dict[str, object],
+) -> str:
+    payload = {"observations": observations, "assumptions": assumptions, "model": model_identity}
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _json_records(frame: pd.DataFrame) -> list[dict[str, object]]:
+    """Store tabular outputs as JSON-safe dictionaries in Streamlit session state."""
+    return _input_snapshot(frame)
+
+
+def _show_saved_prediction(saved: dict[str, object]) -> None:
+    prediction = saved["prediction"]
+    plans = pd.DataFrame(saved["reserve_plans"])
+    forecasts = [
+        prediction["radiation_kwh_m2_day"],
+        prediction["persistence_kwh_m2_day"],
+        prediction["seasonal_mean_kwh_m2_day"],
+    ]
+    st.subheader(f"Fresh prediction for {prediction['target_date']}")
+    st.metric("Ridge predicted solar radiation", f"{forecasts[0]:.2f} kWh/m²/day")
+    st.metric("Ridge planned reserve", f"{plans.loc[0, 'prepared_reserve_kwh']:.2f} kWh")
+    identity = saved["model_identity"]
+    st.caption(
+        f"Model {identity['model_id']}; trained on {identity['training_rows']} training rows "
+        f"through {identity['training_end']}. Model SHA-256: {identity['artifact_sha256']}."
+    )
+    if saved.get("decision_selection", {}).get("selected_model"):
+        st.caption(
+            "Development-only reserve objective selected "
+            f"{saved['decision_selection']['selected_model']} on the 2022 validation period. "
+            "This is a research ranking, not an operational reliability guarantee."
+        )
+    st.subheader("Fresh inference and baseline reserve comparison")
+    st.dataframe(
+        pd.DataFrame(
+            {
+                "Approach": [
+                    "Trained Ridge model",
+                    "Persistence baseline",
+                    "Seasonal-mean baseline",
+                ],
+                "Predicted radiation (kWh/m²/day)": forecasts,
+                "Predicted electricity proxy (kWh/day)": plans[
+                    "predicted_generation_proxy_kwh_day"
+                ].to_list(),
+                "Prepared reserve (kWh)": plans["prepared_reserve_kwh"].to_list(),
+            }
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+    st.info(
+        "The target day's actual radiation is not yet supplied, so realized shortfall and "
+        "excess prepared reserve are not calculated in prediction mode. No forecast-data "
+        "availability or facility performance is established."
+    )
+    with st.expander("Feature and model details"):
+        st.write(
+            f"Issue date: {prediction['issue_date']} · target date: {prediction['target_date']} · "
+            f"model: {prediction['model_id']} · training rows: {identity['training_rows']}."
+        )
+        st.json(prediction["features"], expanded=False)
+        st.write(
+            "Exact input observations and hypothetical reserve assumptions are saved "
+            "with this result."
+        )
+        st.markdown(
+            "Training-only median imputation, standard scaling, and Ridge coefficients are "
+            "loaded from the versioned numeric model bundle. Input window values are not "
+            "reused cached predictions."
+        )
+    assumptions = saved["assumptions"]
+    st.caption(
+        f"Assumptions: demand {assumptions['demand']:g} kWh/day, reserve capacity "
+        f"{assumptions['capacity']:g} kWh, buffer {assumptions['buffer']:g} kWh, "
+        f"area {assumptions['area']:g} m², efficiency {assumptions['efficiency']:g}, "
+        f"derating {assumptions['derating']:g}. All are hypothetical, not measured facility values."
+    )
+
+
 def _show_prediction(project_root: Path) -> None:
     """Collect seven observed rows and run new inference from the saved fitted model."""
     paths = ProjectPaths(project_root)
@@ -404,98 +642,78 @@ def _show_prediction(project_root: Path) -> None:
             ),
         },
     )
-    if not st.button("Run fresh Ridge prediction", type="primary"):
+    assumptions = {
+        "demand": float(demand),
+        "capacity": float(capacity),
+        "buffer": float(buffer),
+        "area": float(area),
+        "efficiency": float(efficiency),
+        "derating": float(derating),
+    }
+    observations_snapshot = _input_snapshot(edited)
+    model_identity = {
+        "model_id": model.model_id,
+        "artifact_sha256": model.artifact_sha256,
+        "training_rows": model.training_rows,
+        "training_start": model.training_start.isoformat(),
+        "training_end": model.training_end.isoformat(),
+    }
+    fingerprint = _prediction_fingerprint(observations_snapshot, assumptions, model_identity)
+    if st.button("Run fresh Ridge prediction", type="primary"):
+        try:
+            observations = _edited_window_frame(edited)
+            result = predict_next_day(model, observations)
+            forecasts = [
+                result.radiation_kwh_m2_day,
+                result.persistence_kwh_m2_day,
+                result.seasonal_mean_kwh_m2_day,
+            ]
+            plans = plan_daily_reserve(
+                forecasts,
+                demand_kwh=demand,
+                capacity_kwh=capacity,
+                buffer_kwh=buffer,
+                panel_area_m2=area,
+                efficiency=efficiency,
+                derating=derating,
+            )
+        except (TypeError, ValueError) as error:
+            st.error(f"Cannot run prediction: {error}")
+        else:
+            st.session_state[PREDICTION_STATE_KEY] = {
+                "fingerprint": fingerprint,
+                "observations": observations_snapshot,
+                "assumptions": assumptions,
+                "model_identity": model_identity,
+                "decision_selection": decision_selection,
+                "prediction": {
+                    "issue_date": result.issue_date.isoformat(),
+                    "target_date": result.target_date.isoformat(),
+                    "radiation_kwh_m2_day": float(result.radiation_kwh_m2_day),
+                    "persistence_kwh_m2_day": float(result.persistence_kwh_m2_day),
+                    "seasonal_mean_kwh_m2_day": float(result.seasonal_mean_kwh_m2_day),
+                    "model_id": result.model_id,
+                    "features": result.features,
+                },
+                "reserve_plans": _json_records(plans),
+            }
+
+    saved = st.session_state.get(PREDICTION_STATE_KEY)
+    if saved is None:
         st.info("Edit or confirm the seven rows, then run a fresh model inference.")
         st.caption(
             f"Loaded model: {model.model_id} · training target dates "
             f"{model.training_start} through {model.training_end} · "
             f"training rows {model.training_rows} · SHA-256 {model.artifact_sha256[:12]}…"
         )
-        return
-
-    try:
-        observations = _edited_window_frame(edited)
-        result = predict_next_day(model, observations)
-        forecasts = [
-            result.radiation_kwh_m2_day,
-            result.persistence_kwh_m2_day,
-            result.seasonal_mean_kwh_m2_day,
-        ]
-        plans = plan_daily_reserve(
-            forecasts,
-            demand_kwh=demand,
-            capacity_kwh=capacity,
-            buffer_kwh=buffer,
-            panel_area_m2=area,
-            efficiency=efficiency,
-            derating=derating,
-        )
-    except (TypeError, ValueError) as error:
-        st.error(f"Cannot run prediction: {error}")
-        return
-
-    st.subheader(f"Fresh prediction for {result.target_date:%Y-%m-%d}")
-    st.metric(
-        "Ridge predicted solar radiation",
-        f"{result.radiation_kwh_m2_day:.2f} kWh/m²/day",
-    )
-    st.metric(
-        "Ridge planned reserve",
-        f"{plans.loc[0, 'prepared_reserve_kwh']:.2f} kWh",
-    )
-    st.caption(
-        f"Model {result.model_id}; trained on {model.training_rows} training rows through "
-        f"{model.training_end}. Model SHA-256: {model.artifact_sha256}."
-    )
-    if decision_selection.get("selected_model"):
-        st.caption(
-            "Development-only reserve objective selected "
-            f"{decision_selection['selected_model']} on the 2022 validation period. "
-            "This is a research ranking, not an operational reliability guarantee."
-        )
-    comparison = pd.DataFrame(
-        {
-            "Approach": ["Trained Ridge model", "Persistence baseline", "Seasonal-mean baseline"],
-            "Predicted radiation (kWh/m²/day)": forecasts,
-            "Predicted electricity proxy (kWh/day)": plans[
-                "predicted_generation_proxy_kwh_day"
-            ].to_list(),
-            "Prepared reserve (kWh)": plans["prepared_reserve_kwh"].to_list(),
-        }
-    )
-    st.subheader("Fresh inference and baseline reserve comparison")
-    st.dataframe(comparison, hide_index=True, width="stretch")
-    chart_columns = st.columns(2)
-    chart_columns[0].bar_chart(
-        comparison.set_index("Approach")["Predicted radiation (kWh/m²/day)"],
-        y_label="Solar radiation (kWh/m²/day)",
-    )
-    chart_columns[1].bar_chart(
-        comparison.set_index("Approach")["Prepared reserve (kWh)"],
-        y_label="Prepared reserve (kWh)",
-    )
-    st.info(
-        "The target day's actual radiation is not yet supplied, so realized shortfall and "
-        "excess prepared reserve are not calculated in prediction mode. No forecast-data "
-        "availability or facility performance is established."
-    )
-    with st.expander("Feature and model details"):
-        st.write(
-            f"Issue date: {result.issue_date} · target date: {result.target_date} · "
-            f"model: {result.model_id} · training rows: {model.training_rows}."
-        )
-        st.write("Feature definitions match the historical pipeline:")
-        st.json(result.features, expanded=False)
-        st.markdown(
-            "Training-only median imputation, standard scaling, and Ridge coefficients are "
-            "loaded from the versioned numeric model bundle. Input window values are not "
-            "reused cached predictions."
-        )
-    st.caption(
-        f"Assumptions: demand {demand:g} kWh/day, reserve capacity {capacity:g} kWh, "
-        f"buffer {buffer:g} kWh, area {area:g} m², efficiency {efficiency:g}, "
-        f"derating {derating:g}. All are hypothetical, not measured facility values."
-    )
+    else:
+        if saved["fingerprint"] != fingerprint:
+            st.warning(
+                "Saved prediction is stale. Edited observations, reserve assumptions, or model "
+                "identity differ from the values used for this result. Run a fresh prediction "
+                "to replace it."
+            )
+        _show_saved_prediction(saved)
 
 
 def main(root: Path | None = None) -> None:
@@ -506,11 +724,14 @@ def main(root: Path | None = None) -> None:
     code_root = Path(__file__).resolve().parent
     mode = st.sidebar.radio(
         "SunReserve mode",
-        options=("Next-day AI prediction", "Historical replay"),
+        options=("Next-day AI prediction", "Historical replay", "Frozen 2025 results"),
         index=0,
     )
     if mode == "Next-day AI prediction":
         _show_prediction(project_root)
+        return
+    if mode == "Frozen 2025 results":
+        _show_frozen_2025(project_root)
         return
     try:
         artifacts = _cached_artifacts(
