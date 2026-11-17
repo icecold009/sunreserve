@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 from datetime import date
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,8 @@ class FakeUI:
         self.column_config = self.ColumnConfig()
         self.edited = sample_window()
         self.input_overrides: dict[str, float] = {}
-        self.click_run = False
+        self.buttons_pressed: set[str] = set()
+        self.uploaded_file: Any = None
         self.mode = "Next-day AI prediction"
 
     def __enter__(self) -> FakeUI:
@@ -46,10 +48,16 @@ class FakeUI:
             if name == "number_input":
                 return self.input_overrides.get(args[0], kwargs["value"])
             if name == "data_editor":
+                if self.session_state.get(app.OBSERVATION_EDITOR_VERSION_KEY, 0) > 0:
+                    return self.session_state[app.OBSERVATION_EDITOR_DATA_KEY]
                 return self.edited
             if name == "button":
-                clicked, self.click_run = self.click_run, False
+                label = str(args[0]) if args else ""
+                clicked = label in self.buttons_pressed
+                self.buttons_pressed.discard(label)
                 return clicked
+            if name == "file_uploader":
+                return self.uploaded_file
             if name == "radio":
                 return self.mode
             if name == "columns":
@@ -120,7 +128,7 @@ def prediction_ui(monkeypatch: pytest.MonkeyPatch) -> FakeUI:
 
 
 def run_prediction(ui: FakeUI) -> None:
-    ui.click_run = True
+    ui.buttons_pressed.add("Run fresh Ridge prediction")
     app._show_prediction(ROOT)
 
 
@@ -143,6 +151,190 @@ def test_prediction_persists_exact_inputs_assumptions_identity_and_outputs(
     app._show_prediction(ROOT)
     assert "Fresh prediction for 2025-01-01" in prediction_ui.values("subheader")
     assert prediction_ui.session_state[app.PREDICTION_STATE_KEY] == saved
+
+
+def test_predicted_reserve_summary_shows_capacity_sufficient_and_uncertainty(
+    prediction_ui: FakeUI,
+) -> None:
+    prediction_ui.input_overrides["Illustrative panel area (m²)"] = 5.0
+    prediction_ui.input_overrides["Assumed reserve capacity (kWh)"] = 10.0
+    run_prediction(prediction_ui)
+
+    success_text = " ".join(prediction_ui.values("success"))
+    uncertainty_text = " ".join(prediction_ui.values("info"))
+    assert "covers the predicted backup need" in success_text
+    assert "shortage can still occur" in uncertainty_text
+    summary = next(
+        args[0]
+        for output, args, _ in prediction_ui.outputs
+        if output == "dataframe" and args and "Quantity" in getattr(args[0], "columns", [])
+    )
+    need = summary.loc[summary["Quantity"] == "Predicted backup need before capacity cap", "Value"]
+    assert need.iloc[0] == pytest.approx(10.0)
+
+
+def test_predicted_reserve_summary_warns_when_capacity_is_insufficient(
+    prediction_ui: FakeUI,
+) -> None:
+    prediction_ui.input_overrides["Illustrative panel area (m²)"] = 5.0
+    prediction_ui.input_overrides["Assumed reserve capacity (kWh)"] = 2.0
+    run_prediction(prediction_ui)
+
+    warning_text = " ".join(prediction_ui.values("warning"))
+    assert "exceeds available capacity" in warning_text
+    assert "predicted remaining gap is 8.00 kWh/day" in warning_text
+
+
+def test_zero_capacity_is_flagged_even_when_predicted_solar_exceeds_demand(
+    prediction_ui: FakeUI,
+) -> None:
+    prediction_ui.input_overrides["Assumed reserve capacity (kWh)"] = 0.0
+    run_prediction(prediction_ui)
+
+    warning_text = " ".join(prediction_ui.values("warning"))
+    summary = next(
+        args[0]
+        for output, args, _ in prediction_ui.outputs
+        if output == "dataframe" and args and "Quantity" in getattr(args[0], "columns", [])
+    )
+    solar = summary.loc[
+        summary["Quantity"] == "Predicted solar electricity contribution (proxy)",
+        "Value",
+    ]
+    remaining = summary.loc[
+        summary["Quantity"] == "Predicted remaining gap after solar and reserve",
+        "Value",
+    ]
+    assert "Reserve capacity is zero" in warning_text
+    assert solar.iloc[0] == pytest.approx(20.0)
+    assert remaining.iloc[0] == pytest.approx(0.0)
+
+
+def test_uploaded_csv_validates_rows_and_preserves_the_current_example_on_error(
+    prediction_ui: FakeUI,
+) -> None:
+    uploaded_rows = sample_window().astype({"RH2M": "object"})
+    uploaded_rows.loc[3, "RH2M"] = "not-a-number"
+    prediction_ui.uploaded_file = BytesIO(uploaded_rows.to_csv(index=False).encode("utf-8"))
+
+    app._show_prediction(ROOT)
+
+    assert any(
+        "CSV row 4 field RH2M must be numeric" in value for value in prediction_ui.values("error")
+    )
+    saved_window = prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY]
+    assert saved_window.iloc[-1][app.RADIATION] == 7.0
+
+
+def test_observation_csv_round_trip_and_row_specific_validation() -> None:
+    source = sample_window()
+    uploaded = app._parse_observation_csv(source.to_csv(index=False).encode("utf-8"))
+    assert uploaded["date"].tolist() == source["date"].tolist()
+    assert uploaded[app.RADIATION].tolist() == source[app.RADIATION].tolist()
+
+    invalid = source.copy()
+    invalid.loc[2, "RH2M"] = 110
+    with pytest.raises(ValueError, match=r"CSV row 3 field RH2M"):
+        app._parse_observation_csv(invalid.to_csv(index=False).encode("utf-8"))
+
+
+def test_csv_upload_replaces_the_editor_with_validated_rows(prediction_ui: FakeUI) -> None:
+    imported = sample_window()
+    imported.loc[6, app.RADIATION] = 9.5
+    prediction_ui.uploaded_file = BytesIO(imported.to_csv(index=False).encode("utf-8"))
+
+    app._show_prediction(ROOT)
+
+    saved_window = prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY]
+    assert saved_window.iloc[-1][app.RADIATION] == 9.5
+    assert any("Imported seven observations" in value for value in prediction_ui.values("success"))
+
+
+def test_reset_clears_uploaded_file_and_allows_same_csv_to_be_reimported(
+    prediction_ui: FakeUI,
+) -> None:
+    imported = sample_window()
+    imported.loc[6, app.RADIATION] = 9.5
+    prediction_ui.uploaded_file = BytesIO(imported.to_csv(index=False).encode("utf-8"))
+
+    app._show_prediction(ROOT)
+    assert (
+        prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY].iloc[-1][app.RADIATION] == 9.5
+    )
+
+    prediction_ui.buttons_pressed.add("Reset to historical example")
+    app._show_prediction(ROOT)
+    assert (
+        prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY].iloc[-1][app.RADIATION] == 7.0
+    )
+    assert prediction_ui.session_state[app.CSV_UPLOAD_VERSION_KEY] == 1
+    assert prediction_ui.session_state[app.CSV_UPLOAD_PROCESSED_KEY] is None
+
+    app._show_prediction(ROOT)
+    assert (
+        prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY].iloc[-1][app.RADIATION] == 9.5
+    )
+
+
+def test_reset_restores_the_historical_example(prediction_ui: FakeUI) -> None:
+    prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY] = sample_window().assign(
+        ALLSKY_SFC_SW_DWN=99.0
+    )
+    prediction_ui.buttons_pressed.add("Reset to historical example")
+
+    app._show_prediction(ROOT)
+
+    restored = prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY]
+    assert restored[app.RADIATION].tolist() == sample_window()[app.RADIATION].tolist()
+
+
+def test_guided_example_changes_one_input_without_running_inference(prediction_ui: FakeUI) -> None:
+    prediction_ui.buttons_pressed.add("Apply the guided input change")
+
+    app._show_prediction(ROOT)
+
+    changed = prediction_ui.session_state[app.OBSERVATION_EDITOR_DATA_KEY]
+    assert changed.iloc[-1][app.RADIATION] == 8.0
+    assert app.PREDICTION_STATE_KEY not in prediction_ui.session_state
+
+
+def test_downloaded_result_contains_displayed_outputs_inputs_and_model(
+    prediction_ui: FakeUI,
+) -> None:
+    run_prediction(prediction_ui)
+
+    button = next(
+        (args, kwargs)
+        for output, args, kwargs in prediction_ui.outputs
+        if output == "download_button"
+        and args
+        and "complete prediction result" in str(args[0]).lower()
+    )
+    payload = json.loads(button[1]["data"])
+    summary = next(
+        args[0]
+        for output, args, _ in prediction_ui.outputs
+        if output == "dataframe" and args and "Quantity" in getattr(args[0], "columns", [])
+    )
+    exported_ridge = payload["reserve_outputs"][0]
+    assert summary.columns.tolist() == ["Quantity", "Value", "Units"]
+    assert summary.iloc[0]["Quantity"] == "Assumed daily demand"
+    assert "Predicted value" not in summary.columns
+    assert (
+        payload["observations"]
+        == prediction_ui.session_state[app.PREDICTION_STATE_KEY]["observations"]
+    )
+    assert payload["model_identity"]["model_id"] == "sunreserve.test.ridge.v1"
+    displayed_outputs = {
+        "Assumed daily demand": "demand_kwh",
+        "Predicted solar electricity contribution (proxy)": "predicted_generation_proxy_kwh_day",
+        "Predicted backup need before capacity cap": "backup_need_before_capacity_cap_kwh",
+        "Predicted planned reserve after capacity cap": "prepared_reserve_kwh",
+        "Predicted remaining gap after solar and reserve": "predicted_remaining_gap_kwh",
+    }
+    for label, field in displayed_outputs.items():
+        displayed_value = summary.loc[summary["Quantity"] == label, "Value"].iloc[0]
+        assert exported_ridge[field] == pytest.approx(displayed_value)
 
 
 def test_changed_assumption_marks_saved_prediction_stale(prediction_ui: FakeUI) -> None:

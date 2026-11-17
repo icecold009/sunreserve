@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
+import math
 import os
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -36,6 +39,15 @@ APPROACH_LABELS = {
 }
 MOBILE_METRIC_VALUE_MAX_CHARS = 13
 PREDICTION_STATE_KEY = "sunreserve_last_prediction"
+OBSERVATION_EDITOR_KEY = "sunreserve_prediction_observations"
+OBSERVATION_EDITOR_DATA_KEY = "sunreserve_prediction_observations_data"
+OBSERVATION_EDITOR_VERSION_KEY = "sunreserve_prediction_observations_version"
+CSV_UPLOAD_KEY = "sunreserve_csv_upload"
+CSV_UPLOAD_VERSION_KEY = "sunreserve_csv_upload_version"
+CSV_UPLOAD_PROCESSED_KEY = "sunreserve_csv_upload_processed_sha256"
+CSV_UPLOAD_STATUS_KEY = "sunreserve_csv_upload_status"
+GUIDED_EXAMPLE_KEY = "sunreserve_guided_example_applied"
+OBSERVATION_COLUMNS = ["date", RADIATION, "T2M", "RH2M"]
 FROZEN_2025_FILES = ("predictions.csv", "decision_metrics.csv", "forecast_metrics.json")
 
 
@@ -447,6 +459,75 @@ def _sample_observation_window(paths: ProjectPaths) -> pd.DataFrame:
     return window
 
 
+def _observation_csv_template() -> str:
+    """Return a blank seven-row template without presenting fabricated data as history."""
+    template = pd.DataFrame({column: [""] * 7 for column in OBSERVATION_COLUMNS})
+    return template.to_csv(index=False, lineterminator="\n")
+
+
+def _set_observation_editor_data(frame: pd.DataFrame) -> None:
+    """Set programmatic editor input and remount its widget without assigning its widget key."""
+    st.session_state[OBSERVATION_EDITOR_DATA_KEY] = frame.copy()
+    st.session_state[OBSERVATION_EDITOR_VERSION_KEY] = (
+        int(st.session_state.get(OBSERVATION_EDITOR_VERSION_KEY, 0)) + 1
+    )
+
+
+def _parse_observation_csv(payload: bytes) -> pd.DataFrame:
+    """Parse a strict seven-row CSV and report input errors at their source row."""
+    try:
+        uploaded = pd.read_csv(io.BytesIO(payload), dtype={"date": "string"})
+    except (UnicodeDecodeError, pd.errors.ParserError, ValueError) as error:
+        raise ValueError(f"CSV could not be read: {error}") from error
+    if list(uploaded.columns) != OBSERVATION_COLUMNS:
+        expected = ", ".join(OBSERVATION_COLUMNS)
+        received = ", ".join(str(column) for column in uploaded.columns)
+        raise ValueError(f"CSV headers must be exactly: {expected}. Found: {received or 'none'}.")
+    if len(uploaded) != 7:
+        raise ValueError(f"CSV must contain exactly 7 observation rows; found {len(uploaded)}.")
+
+    rows: list[dict[str, object]] = []
+    previous_date: date | None = None
+    for position, record in enumerate(uploaded.to_dict(orient="records"), start=1):
+        raw_date = record["date"]
+        if pd.isna(raw_date) or not isinstance(raw_date, str):
+            raise ValueError(f"CSV row {position} is missing its date; use YYYY-MM-DD.")
+        try:
+            observation_date = date.fromisoformat(raw_date)
+        except ValueError as error:
+            raise ValueError(f"CSV row {position} has an invalid date; use YYYY-MM-DD.") from error
+        if observation_date.isoformat() != raw_date:
+            raise ValueError(f"CSV row {position} date must use YYYY-MM-DD.")
+        if observation_date > date.today():
+            raise ValueError(f"CSV row {position} date is in the future.")
+        if previous_date is not None and observation_date != previous_date + timedelta(days=1):
+            raise ValueError(
+                f"CSV row {position} must be the next consecutive calendar day after row "
+                f"{position - 1}."
+            )
+        converted: dict[str, object] = {"date": observation_date}
+        for column in OBSERVATION_COLUMNS[1:]:
+            raw_value = record[column]
+            if pd.isna(raw_value):
+                raise ValueError(f"CSV row {position} field {column} is blank.")
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as error:
+                raise ValueError(f"CSV row {position} field {column} must be numeric.") from error
+            if not math.isfinite(value):
+                raise ValueError(f"CSV row {position} field {column} must be finite.")
+            if column == RADIATION and value < 0:
+                raise ValueError(f"CSV row {position} field {column} must be nonnegative.")
+            if column == "RH2M" and not 0 <= value <= 100:
+                raise ValueError(
+                    f"CSV row {position} field RH2M must be between 0 and 100 percent."
+                )
+            converted[column] = value
+        rows.append(converted)
+        previous_date = observation_date
+    return pd.DataFrame(rows, columns=OBSERVATION_COLUMNS)
+
+
 def _edited_window_frame(edited: pd.DataFrame) -> pd.DataFrame:
     """Convert Streamlit editor rows to the strict inference input contract."""
     records = edited.to_dict(orient="records")
@@ -496,9 +577,40 @@ def _json_records(frame: pd.DataFrame) -> list[dict[str, object]]:
     return _input_snapshot(frame)
 
 
+def _prediction_decision_table(saved: dict[str, object]) -> pd.DataFrame:
+    """Describe forecast-only reserve decisions without implying observed outcomes."""
+    plans = pd.DataFrame(saved["reserve_plans"]).copy()
+    demand = plans["demand_kwh"].astype(float)
+    predicted_solar = plans["predicted_generation_proxy_kwh_day"].astype(float)
+    prepared = plans["prepared_reserve_kwh"].astype(float)
+    buffer = plans["buffer_kwh"].astype(float)
+    plans["backup_need_before_capacity_cap_kwh"] = (demand - predicted_solar + buffer).clip(
+        lower=0.0
+    )
+    plans["predicted_remaining_gap_kwh"] = (demand - predicted_solar - prepared).clip(lower=0.0)
+    return plans
+
+
+def _prediction_export_payload(saved: dict[str, object]) -> dict[str, object]:
+    """Build a portable result containing the exact inputs, assumptions, model, and outputs."""
+    plans = _prediction_decision_table(saved)
+    return {
+        "format": "sunreserve-prediction-v1",
+        "interpretation": (
+            "Forecast and reserve quantities are hypothetical predictions; no target-day "
+            "outcome or facility performance is measured."
+        ),
+        "observations": saved["observations"],
+        "assumptions": saved["assumptions"],
+        "model_identity": saved["model_identity"],
+        "prediction": saved["prediction"],
+        "reserve_outputs": _json_records(plans),
+    }
+
+
 def _show_saved_prediction(saved: dict[str, object]) -> None:
     prediction = saved["prediction"]
-    plans = pd.DataFrame(saved["reserve_plans"])
+    plans = _prediction_decision_table(saved)
     forecasts = [
         prediction["radiation_kwh_m2_day"],
         prediction["persistence_kwh_m2_day"],
@@ -506,7 +618,58 @@ def _show_saved_prediction(saved: dict[str, object]) -> None:
     ]
     st.subheader(f"Fresh prediction for {prediction['target_date']}")
     st.metric("Ridge predicted solar radiation", f"{forecasts[0]:.2f} kWh/m²/day")
-    st.metric("Ridge planned reserve", f"{plans.loc[0, 'prepared_reserve_kwh']:.2f} kWh")
+    ridge_plan = plans.iloc[0]
+    st.subheader("Predicted reserve summary · Ridge")
+    summary = pd.DataFrame(
+        [
+            {
+                "Quantity": "Assumed daily demand",
+                "Value": ridge_plan["demand_kwh"],
+                "Units": "kWh/day",
+            },
+            {
+                "Quantity": "Predicted solar electricity contribution (proxy)",
+                "Value": ridge_plan["predicted_generation_proxy_kwh_day"],
+                "Units": "kWh/day",
+            },
+            {
+                "Quantity": "Predicted backup need before capacity cap",
+                "Value": ridge_plan["backup_need_before_capacity_cap_kwh"],
+                "Units": "kWh/day",
+            },
+            {
+                "Quantity": "Predicted planned reserve after capacity cap",
+                "Value": ridge_plan["prepared_reserve_kwh"],
+                "Units": "kWh/day",
+            },
+            {
+                "Quantity": "Predicted remaining gap after solar and reserve",
+                "Value": ridge_plan["predicted_remaining_gap_kwh"],
+                "Units": "kWh/day",
+            },
+        ]
+    )
+    st.dataframe(summary, hide_index=True, width="stretch")
+    capacity = float(ridge_plan["capacity_kwh"])
+    required = float(ridge_plan["backup_need_before_capacity_cap_kwh"])
+    if capacity == 0:
+        st.warning(
+            "Reserve capacity is zero, so no backup can be prepared. The predicted remaining "
+            f"gap is {ridge_plan['predicted_remaining_gap_kwh']:.2f} kWh/day "
+            "under these assumptions."
+        )
+    elif required > capacity:
+        st.warning(
+            f"Predicted backup need ({required:.2f} kWh/day) exceeds available capacity "
+            f"({capacity:.2f} kWh). The planned reserve is capped at capacity; the predicted "
+            f"remaining gap is {ridge_plan['predicted_remaining_gap_kwh']:.2f} kWh/day."
+        )
+    else:
+        st.success("Available capacity covers the predicted backup need under these assumptions.")
+    st.info(
+        "Forecast uncertainty remains: actual solar contribution can differ from the prediction, "
+        "so a shortage can still occur even when capacity covers the predicted need."
+    )
     identity = saved["model_identity"]
     st.caption(
         f"Model {identity['model_id']}; trained on {identity['training_rows']} training rows "
@@ -531,7 +694,13 @@ def _show_saved_prediction(saved: dict[str, object]) -> None:
                 "Predicted electricity proxy (kWh/day)": plans[
                     "predicted_generation_proxy_kwh_day"
                 ].to_list(),
-                "Prepared reserve (kWh)": plans["prepared_reserve_kwh"].to_list(),
+                "Backup need before capacity cap (kWh/day)": plans[
+                    "backup_need_before_capacity_cap_kwh"
+                ].to_list(),
+                "Planned reserve after capacity cap (kWh/day)": plans[
+                    "prepared_reserve_kwh"
+                ].to_list(),
+                "Predicted remaining gap (kWh/day)": plans["predicted_remaining_gap_kwh"].to_list(),
             }
         ),
         hide_index=True,
@@ -563,6 +732,19 @@ def _show_saved_prediction(saved: dict[str, object]) -> None:
         f"{assumptions['capacity']:g} kWh, buffer {assumptions['buffer']:g} kWh, "
         f"area {assumptions['area']:g} m², efficiency {assumptions['efficiency']:g}, "
         f"derating {assumptions['derating']:g}. All are hypothetical, not measured facility values."
+    )
+    export_data = json.dumps(
+        _prediction_export_payload(saved), ensure_ascii=False, indent=2, allow_nan=False
+    )
+    st.download_button(
+        "Download complete prediction result (JSON)",
+        data=export_data,
+        file_name=f"sunreserve-prediction-{prediction['target_date']}.json",
+        mime="application/json",
+        help=(
+            "Includes exact observation rows, assumptions, model identity, forecasts, "
+            "and reserve outputs."
+        ),
     )
 
 
@@ -620,14 +802,130 @@ def _show_prediction(project_root: Path) -> None:
         )
 
     st.subheader("Recent daily observation window")
-    st.caption(
-        "A prefilled local example, when available, is historical and may not have been "
-        "available on its issue date. Replace it with verified recent observations before use."
-    )
     editor = _sample_observation_window(paths)
+    if OBSERVATION_EDITOR_DATA_KEY not in st.session_state:
+        st.session_state[OBSERVATION_EDITOR_DATA_KEY] = editor.copy()
+    if OBSERVATION_EDITOR_VERSION_KEY not in st.session_state:
+        st.session_state[OBSERVATION_EDITOR_VERSION_KEY] = 0
+    default_dates = editor["date"].dropna()
+    date_span = (
+        f"{default_dates.iloc[0]} to {default_dates.iloc[-1]}"
+        if len(default_dates)
+        else "not available"
+    )
+    with st.expander("Input guide · location, units, and compatible observations"):
+        st.markdown(
+            "**Reference location:** Bengaluru, India (12.9716° N, 77.5946° E). "
+            "Enter seven consecutive daily rows ending on the issue date."
+        )
+        st.markdown(
+            f"**Historical example dates:** {date_span}. The prefilled rows are a local "
+            "historical example, not a live feed and not proof those values were available "
+            "on the issue date."
+        )
+        st.markdown(
+            "**Columns and units:** `date` is YYYY-MM-DD; `ALLSKY_SFC_SW_DWN` is daily "
+            "NASA POWER solar radiation in kWh/m²/day; `T2M` is 2 m air temperature in °C; "
+            "`RH2M` is relative humidity in percent. Dates must be consecutive."
+        )
+        st.markdown(
+            f"**Model period:** {model.training_start} through {model.training_end} "
+            f"({model.training_rows:,} training rows). The model predicts next-day radiation; "
+            "solar-to-electricity conversion and reserve settings are hypothetical."
+        )
+        st.markdown(
+            "To use compatible observations, select the daily NASA POWER parameters above "
+            "for the Bengaluru coordinates and seven consecutive dates, then confirm that "
+            "each value was actually available by the forecast issue time. NASA POWER data "
+            "can be delayed, so historical values do not establish live availability. "
+            "See the [NASA POWER Daily API documentation]"
+            "(https://power.larc.nasa.gov/docs/services/api/temporal/daily/)."
+        )
+
+    st.download_button(
+        "Download blank seven-row CSV template",
+        data=_observation_csv_template(),
+        file_name="sunreserve-observations-template.csv",
+        mime="text/csv",
+        help="Fill all seven consecutive rows using the displayed column names and units.",
+    )
+    upload_version = int(st.session_state.get(CSV_UPLOAD_VERSION_KEY, 0))
+    uploaded = st.file_uploader(
+        "Import seven compatible observations from CSV",
+        type=["csv"],
+        key=f"{CSV_UPLOAD_KEY}_{upload_version}",
+        help=f"Required columns: {', '.join(OBSERVATION_COLUMNS)}. Dates use YYYY-MM-DD.",
+    )
+    uploaded_digest = None
+    if uploaded is not None:
+        upload_payload = uploaded.getvalue()
+        uploaded_digest = hashlib.sha256(upload_payload).hexdigest()
+        if st.session_state.get(CSV_UPLOAD_PROCESSED_KEY) != uploaded_digest:
+            try:
+                imported = _parse_observation_csv(upload_payload)
+            except ValueError as error:
+                st.session_state[CSV_UPLOAD_STATUS_KEY] = (uploaded_digest, str(error), False)
+            else:
+                _set_observation_editor_data(imported)
+                st.session_state[CSV_UPLOAD_STATUS_KEY] = (
+                    uploaded_digest,
+                    "Imported seven observations. Review the rows, then run prediction when ready.",
+                    True,
+                )
+            st.session_state[CSV_UPLOAD_PROCESSED_KEY] = uploaded_digest
+        status = st.session_state.get(CSV_UPLOAD_STATUS_KEY)
+        if status and status[0] == uploaded_digest:
+            (st.success if status[2] else st.error)(status[1])
+
+    reset_column, guide_column = st.columns(2)
+    if reset_column.button("Reset to historical example", key="sunreserve_reset_example"):
+        _set_observation_editor_data(editor)
+        st.session_state[CSV_UPLOAD_VERSION_KEY] = upload_version + 1
+        st.session_state[CSV_UPLOAD_PROCESSED_KEY] = None
+        st.session_state[CSV_UPLOAD_STATUS_KEY] = None
+        st.session_state[GUIDED_EXAMPLE_KEY] = False
+    with guide_column:
+        st.write("Guided example")
+        st.caption(
+            "Change only the last day's radiation by +1.0 kWh/m²/day to see how the "
+            "forecast responds. This is an input demonstration, not an observation."
+        )
+        if st.button("Apply the guided input change", key="sunreserve_guided_change"):
+            guided = pd.DataFrame(st.session_state[OBSERVATION_EDITOR_DATA_KEY]).copy()
+            try:
+                current = float(guided.iloc[-1][RADIATION])
+            except (IndexError, TypeError, ValueError) as error:
+                st.error(
+                    "Cannot apply the guided change: final-row radiation must be numeric "
+                    f"({error})."
+                )
+            else:
+                if not math.isfinite(current) or current < 0:
+                    st.error(
+                        "Cannot apply the guided change: final-row radiation must be finite "
+                        "and nonnegative."
+                    )
+                else:
+                    guided.loc[guided.index[-1], RADIATION] = current + 1.0
+                    _set_observation_editor_data(guided)
+                    st.session_state[GUIDED_EXAMPLE_KEY] = True
+
+    with st.expander("How to read the result and where to compare it"):
+        st.markdown(
+            "The result compares the trained Ridge model with persistence and the "
+            "training-only seasonal baseline. [Jump to the comparison below]"
+            "(#fresh-inference-and-baseline-reserve-comparison)."
+        )
+        st.markdown(
+            "To review the frozen historical evaluation, select **Frozen 2025 results** "
+            "in the sidebar or read the [2025 results and baseline comparison]"
+            "(https://github.com/icecold009/sunreserve/blob/main/README.md#frozen-2025-results)."
+        )
+
+    editor_version = int(st.session_state[OBSERVATION_EDITOR_VERSION_KEY])
     edited = st.data_editor(
-        editor,
-        key="sunreserve_prediction_observations",
+        st.session_state[OBSERVATION_EDITOR_DATA_KEY],
+        key=f"{OBSERVATION_EDITOR_KEY}_{editor_version}",
         num_rows="fixed",
         hide_index=True,
         width="stretch",
@@ -642,6 +940,12 @@ def _show_prediction(project_root: Path) -> None:
             ),
         },
     )
+    st.session_state[OBSERVATION_EDITOR_DATA_KEY] = edited.copy()
+    if st.session_state.get(GUIDED_EXAMPLE_KEY):
+        st.info(
+            "Guided value changed. Click **Run fresh Ridge prediction** to calculate "
+            "the new result."
+        )
     assumptions = {
         "demand": float(demand),
         "capacity": float(capacity),

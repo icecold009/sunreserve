@@ -57,12 +57,12 @@ The hypothetical equal-weight score adds mean shortfall and excess reserve at 1:
 
 ## Quick start
 
-Python 3.11–3.13 is supported. From a fresh checkout, install the project and its verification tools, then launch the app. The tracked model and data artifacts let the demonstration start without downloading data or fitting a model.
+Python 3.11–3.13 is supported. From a fresh checkout, install the project and its verification tools, then launch the app. The tracked model and data artifacts let the demonstration start without downloading data or fitting a model. The preview command runs headlessly, disables usage statistics, and binds only to the local machine.
 
 ```powershell
 python -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-& .\.venv\Scripts\python.exe -m streamlit run app.py
+& .\.venv\Scripts\python.exe -m streamlit run app.py --server.headless true --server.address 127.0.0.1 --browser.gatherUsageStats false
 ```
 
 The default view is **Next-day AI prediction**. Confirm or replace the seven daily rows and choose **Run fresh Ridge prediction**. The separate replay view reads its saved historical artifacts. Neither mode contacts NASA POWER at startup. To refresh source data explicitly, follow the fetch, prepare, and validation procedure in the [method and results write-up](docs/writeup.md).
