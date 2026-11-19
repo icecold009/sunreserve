@@ -1,7 +1,7 @@
 # Selected declared lower bounds, exercised on Python 3.11 in CI.
 numpy==1.26.0
 pandas==2.1.0
-scikit-learn==1.4.0
+scikit-learn==1.9.1
 streamlit==1.49.0
 Pillow==10.1.0
 pytest==9.0.3
