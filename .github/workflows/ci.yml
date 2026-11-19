@@ -9,18 +9,129 @@ permissions:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install project and development dependencies
         run: python -m pip install -e ".[dev]"
-      - name: Run tests
+      - name: Install the pinned vulnerability scanner
+        run: python -m pip install -r requirements/security-tools.txt
+      - name: Check dependency compatibility
+        run: python -m pip check
+      - name: Audit installed dependencies for known vulnerabilities
+        run: pip-audit --local
+      - name: Run the test suite
         run: python -m pytest
+      - name: Verify shipped frozen artifacts offline
+        run: python -m pytest tests/test_app.py tests/test_presentation.py -k "frozen_2025 or artifact_signature"
       - name: Lint with Ruff
         run: ruff check .
       - name: Check Ruff formatting
         run: ruff format --check .
+
+  minimum-dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+      - name: Install selected declared dependency minimums
+        run: python -m pip install -e ".[dev]" -c requirements/compat-minimums.txt
+      - name: Check dependency compatibility
+        run: python -m pip check
+      - name: Run tests against selected minimums
+        run: python -m pytest
+
+  streamlit-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install project and development dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Check dependency compatibility
+        run: python -m pip check
+      - name: Exercise real Streamlit session lifecycle
+        env:
+          SUNRESERVE_RUN_STREAMLIT_TESTS: "1"
+        run: python -m pytest tests/test_streamlit_lifecycle.py -q
+
+  windows-smoke:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.12"
+          cache: pip
+      - name: Install the recorded Windows Python 3.13.12 snapshot
+        run: python -m pip install -r requirements/snapshots/windows-cpython-3.13.12-amd64.txt
+      - name: Install the checkout without changing the snapshot resolution
+        run: python -m pip install --no-deps -e ".[dev]"
+      - name: Check dependency compatibility
+        run: python -m pip check
+      - name: Run tests under PowerShell and Windows paths
+        run: python -m pytest
+      - name: Verify shipped frozen artifacts offline
+        run: python -m pytest tests/test_app.py tests/test_presentation.py -k "frozen_2025 or artifact_signature"
+      - name: Lint with Ruff
+        run: ruff check .
+      - name: Check Ruff formatting
+        run: ruff format --check .
+      - name: Start Streamlit and check its local health endpoint
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $server = Start-Process -FilePath python -WindowStyle Hidden -PassThru -ArgumentList @(
+            "-m", "streamlit", "run", "app.py",
+            "--server.headless", "true",
+            "--server.address", "127.0.0.1",
+            "--server.port", "8501",
+            "--browser.gatherUsageStats", "false"
+          )
+          try {
+            $deadline = (Get-Date).AddSeconds(45)
+            $healthy = $false
+            while ((Get-Date) -lt $deadline) {
+              if ($server.HasExited) {
+                throw "Streamlit exited before its health endpoint responded."
+              }
+              try {
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:8501/_stcore/health" -TimeoutSec 2
+                if ($response.StatusCode -eq 200) {
+                  $healthy = $true
+                  break
+                }
+              } catch {
+                Start-Sleep -Milliseconds 500
+              }
+            }
+            if (-not $healthy) {
+              throw "Streamlit health endpoint did not respond within 45 seconds."
+            }
+          } finally {
+            if (-not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
+      - name: Install the pinned vulnerability scanner
+        run: python -m pip install -r requirements/security-tools.txt
+      - name: Check scanner dependencies
+        run: python -m pip check
+      - name: Audit the exact recorded package snapshot
+        run: pip-audit --no-deps -r requirements/snapshots/windows-cpython-3.13.12-amd64.txt

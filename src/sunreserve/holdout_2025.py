@@ -34,6 +34,7 @@ from sunreserve.evaluate import (
 )
 from sunreserve.features import RADIATION, build_next_day_features
 from sunreserve.inference import load_model_bundle, predict_next_day
+from sunreserve.source_provenance import source_provenance
 
 HOLDOUT_START = date(2025, 1, 1)
 HOLDOUT_END = date(2025, 12, 31)
@@ -89,8 +90,7 @@ def _read_object(path: Path, label: str) -> dict[str, Any]:
 
 
 def _holdout_paths(root: Path) -> tuple[Path, Path]:
-    stem = f"power_daily_{root.name}_2025_holdout"
-    raw = root / "data" / "raw" / f"{stem}.json"
+    raw = root / "data" / "raw" / "power_daily_sunreserve_2025_holdout.json"
     return raw, raw.with_suffix(".meta.json")
 
 
@@ -498,6 +498,7 @@ def evaluate_2025_holdout(
     code_paths = {
         "holdout_2025": Path(__file__).resolve(),
         "holdout_2025_cli": Path(__file__).with_name("holdout_2025_cli.py").resolve(),
+        "source_provenance": Path(__file__).with_name("source_provenance.py").resolve(),
     }
     code_hashes = {name: _sha256_file(path) for name, path in code_paths.items()}
     prediction_content = predictions.to_csv(index=False, lineterminator="\n")
@@ -564,7 +565,7 @@ def evaluate_2025_holdout(
             "request_url": source_info["provenance"]["request_url"],
             "retrieved_utc": source_info["provenance"]["retrieved_utc"],
         },
-        "code_revision": "uncommitted",
+        **source_provenance(),
         "frozen_development_code_hashes": manifest["code_hashes"],
         "holdout_evaluation_code_hashes": code_hashes,
         "environment": {

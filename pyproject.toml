@@ -18,7 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "Pillow>=10.1,<14",
-    "pytest>=8,<9",
+    "pytest>=9.0.3,<10",
     "ruff>=0.5,<1",
 ]
 
@@ -28,6 +28,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "streamlit: real Streamlit AppTest lifecycle checks requiring a socket-capable runtime",
+]
 
 [tool.ruff]
 line-length = 100

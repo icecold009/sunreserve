@@ -5,6 +5,7 @@ import pytest
 from sunreserve.config import ExperimentConfig
 from sunreserve.decision import (
     evaluate_decision_scenarios,
+    generation_proxy,
     plan_daily_reserve,
     simulate_daily_reserve,
 )
@@ -79,6 +80,43 @@ def test_live_reserve_plan_uses_forecast_without_claiming_realized_outcomes() ->
     assert plan["prepared_reserve_kwh"].tolist() == pytest.approx([8.6, 15.0])
     assert "simulated_shortfall_kwh" not in plan
     assert "excess_prepared_reserve_kwh" not in plan
+
+
+def test_generation_proxy_rejects_overflow_from_finite_inputs() -> None:
+    with pytest.raises(ValueError, match="generation proxy calculation produced non-finite"):
+        generation_proxy(
+            [1e308],
+            panel_area_m2=1e308,
+            efficiency=0.20,
+            derating=0.80,
+        )
+
+
+def test_reserve_plan_rejects_overflow_from_finite_demand_and_buffer() -> None:
+    with pytest.raises(ValueError, match="reserve need calculation produced non-finite"):
+        plan_daily_reserve(
+            [0.0],
+            demand_kwh=1.7e308,
+            capacity_kwh=1.7e308,
+            buffer_kwh=1.7e308,
+            panel_area_m2=20.0,
+            efficiency=0.20,
+            derating=0.80,
+        )
+
+
+def test_simulator_rejects_overflow_in_capacity_limited_calculation() -> None:
+    with pytest.raises(ValueError, match="reserve outcome calculation produced non-finite"):
+        simulate_daily_reserve(
+            [1.7e308],
+            [0.0],
+            demand_kwh=0.0,
+            capacity_kwh=1.7e308,
+            buffer_kwh=0.0,
+            panel_area_m2=1.0,
+            efficiency=1.0,
+            derating=1.0,
+        )
 
 
 @pytest.mark.parametrize(

@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 
 from sunreserve.config import ExperimentConfig
+from sunreserve.observations import RADIATION, validate_observation_frame
 
-RADIATION = "ALLSKY_SFC_SW_DWN"
 TARGET_COLUMN = "target_radiation_kwh_m2_day"
 FEATURE_COLUMNS = (
     "radiation_today_kwh_m2_day",
@@ -87,43 +87,7 @@ def build_next_day_features(observations: pd.DataFrame) -> pd.DataFrame:
     `T2M`, and `RH2M`. The returned row has no label and uses the same shared feature
     builder as the chronological training rows.
     """
-    if not isinstance(observations, pd.DataFrame):
-        raise ValueError("daily observation window must be a pandas DataFrame")
-    required_columns = {RADIATION, "T2M", "RH2M"}
-    missing_columns = required_columns - set(observations.columns)
-    if missing_columns:
-        raise ValueError(
-            f"daily observation window is missing columns: {', '.join(sorted(missing_columns))}"
-        )
-    if not isinstance(observations.index, pd.DatetimeIndex):
-        raise ValueError("daily observation window must use a DatetimeIndex")
-    if observations.index.has_duplicates:
-        raise ValueError("daily observation window contains duplicate dates")
-    if len(observations) != 7:
-        raise ValueError("daily observation window must contain exactly seven daily rows")
-    if observations.index.tz is not None:
-        raise ValueError("daily observation dates must be timezone-naive calendar dates")
-    if not observations.index.is_monotonic_increasing:
-        raise ValueError("daily observation dates must be in chronological order")
-
-    frame = observations.loc[:, [RADIATION, "T2M", "RH2M"]].copy()
-    frame.index = frame.index.normalize()
-    if frame.index.has_duplicates:
-        raise ValueError("daily observation window contains multiple observations on a date")
-    expected_dates = pd.date_range(frame.index[0], periods=7, freq="D")
-    if not frame.index.equals(expected_dates):
-        raise ValueError("daily observation dates must be consecutive calendar days")
-    if frame.index[-1].date() > date.today():
-        raise ValueError("daily observation window must not contain future-dated observations")
-    for column in (RADIATION, "T2M", "RH2M"):
-        frame[column] = pd.to_numeric(frame[column], errors="coerce")
-        values = frame[column].to_numpy(dtype=float)
-        if not np.isfinite(values).all():
-            raise ValueError(f"daily observation field {column} must contain finite values")
-    if (frame[RADIATION] < 0).any():
-        raise ValueError("daily solar radiation must be nonnegative")
-    if ((frame["RH2M"] < 0) | (frame["RH2M"] > 100)).any():
-        raise ValueError("daily relative humidity must be between 0 and 100 percent")
+    frame = validate_observation_frame(observations)
 
     features, target_dates = _feature_frame(frame)
     row = features.iloc[[-1]].copy()

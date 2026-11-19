@@ -48,6 +48,11 @@ def _finite_nonnegative_scalar(value: float, name: str) -> float:
     return float(array[0])
 
 
+def _require_finite_output(values: Any, name: str) -> None:
+    if not np.isfinite(np.asarray(values, dtype=float)).all():
+        raise ValueError(f"{name} calculation produced non-finite values; reduce input magnitudes")
+
+
 def generation_proxy(
     radiation_kwh_m2_day: Any,
     *,
@@ -62,7 +67,10 @@ def generation_proxy(
     derating_value = _finite_nonnegative_scalar(derating, "derating")
     if area <= 0 or not 0 < efficiency_value <= 1 or not 0 < derating_value <= 1:
         raise ValueError("area must be positive and efficiency/derating must be in (0, 1]")
-    return radiation * area * efficiency_value * derating_value
+    with np.errstate(over="ignore", invalid="ignore"):
+        generation = radiation * area * efficiency_value * derating_value
+    _require_finite_output(generation, "generation proxy")
+    return generation
 
 
 def plan_daily_reserve(
@@ -94,7 +102,11 @@ def plan_daily_reserve(
         efficiency=efficiency,
         derating=derating,
     )
-    reserve = np.minimum(capacity, np.maximum(0.0, demand - predicted_generation + buffer))
+    with np.errstate(over="ignore", invalid="ignore"):
+        reserve_need = demand - predicted_generation + buffer
+    _require_finite_output(reserve_need, "reserve need")
+    reserve = np.minimum(capacity, np.maximum(0.0, reserve_need))
+    _require_finite_output(reserve, "planned reserve")
     return pd.DataFrame(
         {
             "predicted_radiation_kwh_m2_day": predicted,
@@ -152,9 +164,18 @@ def simulate_daily_reserve(
         efficiency=efficiency,
         derating=derating,
     )["prepared_reserve_kwh"].to_numpy(dtype=float)
-    shortfall = np.maximum(0.0, demand - actual_generation - reserve)
-    excess_reserve = np.maximum(0.0, reserve - np.maximum(0.0, demand - actual_generation))
-    capacity_limited = np.maximum(0.0, demand - actual_generation - capacity)
+    with np.errstate(over="ignore", invalid="ignore"):
+        net_demand = demand - actual_generation
+        shortfall_need = net_demand - reserve
+        excess_need = reserve - np.maximum(0.0, net_demand)
+        capacity_limited_need = net_demand - capacity
+    _require_finite_output(
+        np.concatenate((shortfall_need, excess_need, capacity_limited_need)),
+        "reserve outcome",
+    )
+    shortfall = np.maximum(0.0, shortfall_need)
+    excess_reserve = np.maximum(0.0, excess_need)
+    capacity_limited = np.maximum(0.0, capacity_limited_need)
 
     return pd.DataFrame(
         {

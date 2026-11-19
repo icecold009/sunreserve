@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ from sunreserve.data import (
     prepare_daily,
     sha256_bytes,
 )
+from sunreserve.holdout_2025 import _holdout_paths, _load_holdout_daily
 
 
 def config() -> ExperimentConfig:
@@ -30,6 +32,59 @@ def config() -> ExperimentConfig:
         validation_start=date(2022, 1, 1),
         validation_end=date(2022, 12, 31),
         test_start=date(2023, 1, 1),
+    )
+
+
+@pytest.mark.parametrize(
+    "project_name",
+    ["sunreserve", "renamed-folder", "sunreserve-main", "project with spaces"],
+)
+def test_shipped_cache_paths_are_portable_across_project_names(
+    tmp_path: Path, project_name: str
+) -> None:
+    from sunreserve.__main__ import main
+
+    config_values = ExperimentConfig()
+    source_root = Path(__file__).resolve().parents[1]
+    source_paths = ProjectPaths(source_root)
+    source_holdout_raw, source_holdout_sidecar = _holdout_paths(source_root)
+    project_root = tmp_path / project_name
+    paths = ProjectPaths(project_root)
+    holdout_raw, holdout_sidecar = _holdout_paths(project_root)
+    source_files = (
+        (source_paths.raw_path, paths.raw_path),
+        (source_paths.sidecar_path, paths.sidecar_path),
+        (source_holdout_raw, holdout_raw),
+        (source_holdout_sidecar, holdout_sidecar),
+    )
+    for source, destination in source_files:
+        assert source.is_file(), f"shipped cache file is missing: {source}"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+
+    def forbidden_downloader(_url: str) -> bytes:
+        raise AssertionError("a matching shipped cache must be reused without network access")
+
+    cached_path, cache_digest, reused = fetch_raw(
+        config_values, paths, downloader=forbidden_downloader
+    )
+    assert reused is True
+    assert cached_path == paths.raw_path
+    assert cache_digest == sha256_bytes(source_paths.raw_path.read_bytes())
+    assert paths.sidecar_path.read_bytes() == source_paths.sidecar_path.read_bytes()
+
+    assert main(["--root", str(project_root), "prepare"]) == 0
+    prepared = pd.read_csv(paths.daily_path, parse_dates=["date"])
+    shipped_prepared = pd.read_csv(source_paths.daily_path, parse_dates=["date"])
+    pd.testing.assert_frame_equal(prepared, shipped_prepared)
+    assert json.loads(paths.quality_path.read_text(encoding="utf-8"))["raw_sha256"] == cache_digest
+
+    copied_holdout, copied_info = _load_holdout_daily(project_root, config_values)
+    shipped_holdout, shipped_info = _load_holdout_daily(source_root, config_values)
+    pd.testing.assert_frame_equal(copied_holdout, shipped_holdout)
+    assert copied_info["quality"]["raw_sha256"] == sha256_bytes(source_holdout_raw.read_bytes())
+    assert (
+        copied_info["provenance_path"].read_bytes() == shipped_info["provenance_path"].read_bytes()
     )
 
 

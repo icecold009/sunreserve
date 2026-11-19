@@ -79,7 +79,7 @@ def frozen_synthetic_project(tmp_path_factory: pytest.TempPathFactory) -> tuple[
     )
     raw = _power_payload(holdout_config, holdout=True)
     _, parsed_metadata = parse_power_payload(raw, holdout_config)
-    holdout_path = root / "data" / "raw" / f"power_daily_{root.name}_2025_holdout.json"
+    holdout_path = root / "data" / "raw" / "power_daily_sunreserve_2025_holdout.json"
     holdout_path.parent.mkdir(parents=True, exist_ok=True)
     holdout_path.write_bytes(raw)
     parameters = {name: item["units"] for name, item in parsed_metadata["parameters"].items()}
@@ -136,6 +136,9 @@ def test_synthetic_holdout_cli_contract_and_artifact_integrity(
     )
     run_dir = result.run_dir
     manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["code_revision"] == "unavailable" or len(manifest["code_revision"]) in (40, 64)
+    assert manifest["working_tree_dirty"] in (True, False, None)
+    assert "source_provenance" in manifest["holdout_evaluation_code_hashes"]
     predictions = pd.read_csv(
         run_dir / "predictions.csv", parse_dates=["issue_date", "target_date"]
     )
@@ -199,7 +202,7 @@ def test_wrong_freeze_and_model_digest_fail_before_holdout_read(
     frozen_synthetic_project: tuple[Path, str, str],
 ) -> None:
     root, manifest_hash, model_hash = frozen_synthetic_project
-    holdout_path = root / "data" / "raw" / f"power_daily_{root.name}_2025_holdout.json"
+    holdout_path = root / "data" / "raw" / "power_daily_sunreserve_2025_holdout.json"
     original = holdout_path.read_bytes()
     holdout_path.unlink()
     try:
