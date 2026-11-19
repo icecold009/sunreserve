@@ -5,88 +5,74 @@ import numpy as np
 import pandas as pd
 
 from sunreserve.config import ExperimentConfig
-from sunreserve.data import ProjectPaths, request_url
+from sunreserve.data import EXPECTED_UNITS, ProjectPaths, fetch_raw, prepare_daily
 from sunreserve.evaluate import load_development_daily, run_validation
+
+
+def _write_validation_fixture(paths, config, *, sentinel_test_rows: bool = False) -> None:
+    dates = pd.date_range(config.start_date, config.end_date, freq="D")
+    position = np.arange(len(dates), dtype=float)
+    date_keys = dates.strftime("%Y%m%d")
+    values = {
+        "ALLSKY_SFC_SW_DWN": 3.5 + np.sin(position / 16) + 0.2 * np.cos(position / 3),
+        "T2M": 23.0 + np.sin(position / 27),
+        "RH2M": 60.0 + 10 * np.cos(position / 19),
+    }
+    payload = {
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": [round(config.longitude, 3), round(config.latitude, 3), 840.0],
+        },
+        "header": {
+            "start": config.start_date.strftime("%Y%m%d"),
+            "end": config.end_date.strftime("%Y%m%d"),
+            "time_standard": config.time_standard,
+        },
+        "parameters": {name: {"units": EXPECTED_UNITS[name][0]} for name in config.parameters},
+        "properties": {
+            "parameter": {
+                name: dict(zip(date_keys, values[name].tolist(), strict=True))
+                for name in config.parameters
+            }
+        },
+    }
+    fetch_raw(
+        config,
+        paths,
+        downloader=lambda _url: json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+    )
+    prepare_daily(config, paths)
+    if sentinel_test_rows:
+        prepared = pd.read_csv(paths.daily_path)
+        prepared["ALLSKY_SFC_SW_DWN"] = prepared["ALLSKY_SFC_SW_DWN"].astype(object)
+        test_rows = pd.to_datetime(prepared["date"]) >= pd.Timestamp(config.test_start)
+        prepared.loc[test_rows, "ALLSKY_SFC_SW_DWN"] = "SENTINEL_TEST_ROW"
+        prepared.to_csv(paths.daily_path, index=False, lineterminator="\n")
+        quality = json.loads(paths.quality_path.read_text(encoding="utf-8"))
+        quality["prepared_daily_csv_sha256"] = hashlib.sha256(
+            paths.daily_path.read_bytes()
+        ).hexdigest()
+        paths.quality_path.write_text(json.dumps(quality), encoding="utf-8")
 
 
 def test_development_loader_reads_only_through_validation_end(tmp_path) -> None:
     config = ExperimentConfig()
     paths = ProjectPaths(tmp_path)
-    dates = pd.date_range(config.start_date, config.end_date, freq="D")
-    radiation = np.full(len(dates), 4.0)
-    radiation[dates >= pd.Timestamp("2023-01-01")] = 999_999.0
-    paths.daily_path.parent.mkdir(parents=True)
-    pd.DataFrame(
-        {
-            "date": dates,
-            "ALLSKY_SFC_SW_DWN": radiation,
-            "T2M": 20.0,
-            "RH2M": 50.0,
-        }
-    ).to_csv(paths.daily_path, index=False)
-    paths.quality_path.parent.mkdir(parents=True, exist_ok=True)
-    paths.quality_path.write_text(
-        json.dumps(
-            {
-                "requested_start": config.start_date.isoformat(),
-                "requested_end": config.end_date.isoformat(),
-                "raw_sha256": "fixture-hash",
-                "prepared_daily_csv_sha256": hashlib.sha256(
-                    paths.daily_path.read_bytes()
-                ).hexdigest(),
-            }
-        ),
-        encoding="utf-8",
-    )
-    paths.sidecar_path.parent.mkdir(parents=True, exist_ok=True)
-    paths.sidecar_path.write_text(
-        json.dumps({"request_url": request_url(config), "sha256": "fixture-hash"}),
-        encoding="utf-8",
-    )
+    _write_validation_fixture(paths, config, sentinel_test_rows=True)
 
     loaded = load_development_daily(paths, config)
 
     assert len(loaded) == 2557
     assert loaded.index.min() == pd.Timestamp("2016-01-01")
     assert loaded.index.max() == pd.Timestamp("2022-12-31")
-    assert loaded["ALLSKY_SFC_SW_DWN"].max() == 4.0
+    assert loaded["ALLSKY_SFC_SW_DWN"].max() < 5.0
 
 
 def test_validate_writes_only_training_and_validation_outputs(tmp_path) -> None:
     config = ExperimentConfig(reserve_buffer_kwh=2.5)
     paths = ProjectPaths(tmp_path)
-    dates = pd.date_range(config.start_date, config.end_date, freq="D")
-    position = np.arange(len(dates), dtype=float)
-    radiation = 3.5 + np.sin(position / 16) + 0.2 * np.cos(position / 3)
-    radiation[dates >= pd.Timestamp("2023-01-01")] = 999_999.0
-    paths.daily_path.parent.mkdir(parents=True)
-    pd.DataFrame(
-        {
-            "date": dates,
-            "ALLSKY_SFC_SW_DWN": radiation,
-            "T2M": 23.0 + np.sin(position / 27),
-            "RH2M": 60.0 + 10 * np.cos(position / 19),
-        }
-    ).to_csv(paths.daily_path, index=False)
-    paths.quality_path.parent.mkdir(parents=True, exist_ok=True)
-    paths.quality_path.write_text(
-        json.dumps(
-            {
-                "requested_start": config.start_date.isoformat(),
-                "requested_end": config.end_date.isoformat(),
-                "raw_sha256": "fixture-hash",
-                "prepared_daily_csv_sha256": hashlib.sha256(
-                    paths.daily_path.read_bytes()
-                ).hexdigest(),
-            }
-        ),
-        encoding="utf-8",
-    )
-    paths.sidecar_path.parent.mkdir(parents=True, exist_ok=True)
-    paths.sidecar_path.write_text(
-        json.dumps({"request_url": request_url(config), "sha256": "fixture-hash"}),
-        encoding="utf-8",
-    )
+    _write_validation_fixture(paths, config, sentinel_test_rows=True)
 
     selection = run_validation(paths, config)
     predictions = pd.read_csv(paths.validation_dir / "validation_predictions.csv")

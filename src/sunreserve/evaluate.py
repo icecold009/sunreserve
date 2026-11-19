@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import importlib.metadata
+import io
 import json
+import math
 import platform
 import re
+import shutil
 import tempfile
+from copy import copy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,7 +22,14 @@ import numpy as np
 import pandas as pd
 
 from sunreserve.config import ExperimentConfig
-from sunreserve.data import DataError, ProjectPaths, request_url
+from sunreserve.data import (
+    EXPECTED_UNITS,
+    SCHEMA_VERSION,
+    DataError,
+    ProjectPaths,
+    _normalize_unit,
+    request_url,
+)
 from sunreserve.decision import (
     BUFFER_FRACTIONS,
     CAPACITY_LEVELS_KWH,
@@ -28,14 +40,99 @@ from sunreserve.decision import (
 from sunreserve.features import (
     FEATURE_COLUMNS,
     TARGET_COLUMN,
+    _split_name,
     build_supervised_rows,
     split_supervised_rows,
 )
-from sunreserve.inference import write_model_bundle
-from sunreserve.train import baseline_predictions, fit_ridge, predict_ridge
+from sunreserve.inference import (
+    MODEL_ID,
+    ModelArtifactError,
+    RidgeModelBundle,
+    load_model_bundle,
+    predict_ridge_bundle,
+    predict_seasonal_mean_bundle,
+    write_model_bundle,
+)
+from sunreserve.source_provenance import source_provenance
+from sunreserve.train import baseline_predictions, fit_ridge, predict_persistence, predict_ridge
 
 ARTIFACT_SCHEMA_VERSION = 2
 FINAL_RUN_SCHEMA_VERSION = 1
+LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT = "date-float-hex-v1"
+DEVELOPMENT_ROWS_DIGEST_FORMAT = "prepared-csv-prefix-v1"
+FINAL_FORECAST_APPROACHES = {"persistence", "seasonal_mean", "ridge"}
+FINAL_DECISION_APPROACHES = {*FINAL_FORECAST_APPROACHES, "always_prepare_backup"}
+FINAL_PREDICTION_COLUMNS = {
+    "artifact_schema_version",
+    "issue_date",
+    "target_date",
+    "split",
+    "actual_radiation_kwh_m2_day",
+    "persistence_prediction_kwh_m2_day",
+    "seasonal_mean_prediction_kwh_m2_day",
+    "ridge_prediction_kwh_m2_day",
+    "selected_model",
+}
+FINAL_FORECAST_METRIC_FIELDS = {
+    "sample_count",
+    "mae",
+    "rmse",
+    "bias_prediction_minus_actual",
+    "monthly_mae_by_target_calendar_month",
+    "monthly_sample_count",
+    "seasonal_mae",
+    "seasonal_sample_count",
+    "low_solar",
+    "prediction_clip_rule",
+}
+FINAL_DECISION_SUMMARY_FIELDS = {
+    "scenario_id",
+    "approach",
+    "selected_model",
+    "sample_count",
+    "simulated_shortfall_day_count",
+    "simulated_shortfall_day_share",
+    "total_simulated_shortfall_kwh",
+    "mean_simulated_shortfall_kwh_day",
+    "total_excess_prepared_reserve_kwh",
+    "mean_excess_prepared_reserve_kwh_day",
+    "capacity_limited_shortfall_day_count",
+    "total_capacity_limited_shortfall_kwh",
+    "mean_capacity_limited_shortfall_kwh_day",
+    "total_additional_shortfall_above_capacity_floor_kwh",
+    "mean_additional_shortfall_above_capacity_floor_kwh_day",
+    "paired_mean_simulated_shortfall_difference_vs_persistence_kwh_day",
+    "paired_mean_simulated_shortfall_difference_vs_seasonal_mean_kwh_day",
+    "paired_mean_excess_difference_vs_persistence_kwh_day",
+    "paired_mean_excess_difference_vs_seasonal_mean_kwh_day",
+}
+FINAL_DECISION_METRIC_COLUMNS = {
+    "artifact_schema_version",
+    "partition",
+    *FINAL_DECISION_SUMMARY_FIELDS,
+    "demand_kwh",
+    "capacity_kwh",
+    "buffer_kwh",
+}
+FINAL_DECISION_PREDICTION_COLUMNS = {
+    "artifact_schema_version",
+    "split",
+    "scenario_id",
+    "approach",
+    "target_date",
+    "actual_radiation_kwh_m2_day",
+    "predicted_radiation_kwh_m2_day",
+    "actual_generation_proxy_kwh_day",
+    "predicted_generation_proxy_kwh_day",
+    "demand_kwh",
+    "capacity_kwh",
+    "buffer_kwh",
+    "prepared_reserve_kwh",
+    "simulated_shortfall_kwh",
+    "excess_prepared_reserve_kwh",
+    "capacity_limited_shortfall_kwh",
+    "additional_shortfall_above_capacity_floor_kwh",
+}
 SELECTION_TIE_ORDER = ("persistence", "seasonal_mean", "ridge")
 DECISION_SELECTION_TIE_ORDER = SELECTION_TIE_ORDER
 DECISION_SELECTION_OBJECTIVE = (
@@ -218,51 +315,276 @@ def select_validation_model(
     )
 
 
-def load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.DataFrame:
-    """Load only data through the end of validation; never read final-test rows."""
-    if not paths.daily_path.is_file():
-        raise DataError(
-            f"prepared daily data is missing at {paths.daily_path}; run fetch and prepare first"
-        )
-    for path, label in (
-        (paths.quality_path, "quality report"),
-        (paths.sidecar_path, "raw provenance sidecar"),
-    ):
-        if not path.is_file():
-            raise DataError(f"{label} is missing at {path}; run fetch and prepare first")
-    try:
-        quality = json.loads(paths.quality_path.read_text(encoding="utf-8"))
-        provenance = json.loads(paths.sidecar_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise DataError(f"cannot read prepared data provenance: {error}") from error
-    if quality.get("requested_start") != config.start_date.isoformat():
-        raise DataError("prepared data start date does not match active configuration")
-    if quality.get("requested_end") != config.end_date.isoformat():
-        raise DataError("prepared data end date does not match active configuration")
-    if provenance.get("request_url") != request_url(config):
-        raise DataError("raw data provenance does not match active configuration")
-    if provenance.get("sha256") != quality.get("raw_sha256"):
-        raise DataError("prepared quality report does not match raw response checksum")
-    if not quality.get("prepared_daily_csv_sha256"):
-        raise DataError("prepared daily checksum is missing; run prepare before validation")
+def _read_provenance_object(path: Path, label: str) -> dict[str, Any]:
+    def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key {key!r}")
+            result[key] = value
+        return result
 
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant {value}")
+
+    try:
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=reject_constant,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise DataError(f"{label} is unreadable or invalid: {error}") from error
+    if not isinstance(value, dict):
+        raise DataError(f"{label} must contain a JSON object")
+    return value
+
+
+def _require_provenance_fields(value: dict[str, Any], fields: set[str], label: str) -> None:
+    missing = fields - set(value)
+    if missing:
+        raise DataError(f"{label} is missing required fields: {', '.join(sorted(missing))}")
+
+
+def _validate_provenance_location(
+    value: Any,
+    *,
+    label: str,
+    config: ExperimentConfig,
+    tolerance: float | None = None,
+) -> None:
+    if not isinstance(value, dict) or set(value) != {"latitude", "longitude"}:
+        raise DataError(f"{label} must contain latitude and longitude")
+    expected = {"latitude": config.latitude, "longitude": config.longitude}
+    for coordinate, expected_value in expected.items():
+        actual = value[coordinate]
+        if isinstance(actual, bool) or not isinstance(actual, (int, float)):
+            raise DataError(f"{label} {coordinate} must be numeric")
+        if not math.isfinite(float(actual)):
+            raise DataError(f"{label} {coordinate} must be finite")
+        matches = (
+            math.isclose(float(actual), expected_value, abs_tol=tolerance)
+            if tolerance is not None
+            else actual == expected_value
+        )
+        if not matches:
+            raise DataError(f"{label} does not match active configuration")
+
+
+def _validate_provenance_units(value: Any, *, label: str, config: ExperimentConfig) -> None:
+    if not isinstance(value, dict) or set(value) != set(config.parameters):
+        raise DataError(f"{label} must declare units for every configured parameter")
+    for parameter in config.parameters:
+        allowed = EXPECTED_UNITS.get(parameter)
+        if allowed is None or _normalize_unit(value[parameter]) not in {
+            _normalize_unit(unit) for unit in allowed
+        }:
+            raise DataError(f"{label} has incompatible units for {parameter}")
+
+
+def _validate_development_provenance(
+    paths: ProjectPaths, config: ExperimentConfig
+) -> tuple[dict[str, Any], bytes]:
+    quality = _read_provenance_object(paths.quality_path, "quality report")
+    sidecar = _read_provenance_object(paths.sidecar_path, "raw provenance sidecar")
+    quality_fields = {
+        "schema_version",
+        "source",
+        "requested_location",
+        "time_standard",
+        "requested_start",
+        "requested_end",
+        "calendar_days",
+        "units",
+        "missing_value_marker",
+        "missing_counts_by_variable",
+        "missing_dates_by_variable",
+        "missing_counts_by_year",
+        "complete_case_days",
+        "excluded_days",
+        "excluded_dates",
+        "exclusion_policy",
+        "raw_sha256",
+        "prepared_daily_csv_sha256",
+    }
+    sidecar_fields = {
+        "schema_version",
+        "source",
+        "request_url",
+        "request_parameters",
+        "retrieved_utc",
+        "reported_location",
+        "units",
+        "missing_value_marker",
+        "sha256",
+    }
+    _require_provenance_fields(quality, quality_fields, "quality report")
+    _require_provenance_fields(sidecar, sidecar_fields, "raw provenance sidecar")
+
+    for value, label in ((quality, "quality report"), (sidecar, "raw provenance sidecar")):
+        if type(value["schema_version"]) is not int or value["schema_version"] != SCHEMA_VERSION:
+            raise DataError(f"{label} schema version is unsupported")
+        if value["source"] != config.source:
+            raise DataError(f"{label} source does not match active configuration")
+        if value["missing_value_marker"] != -999.0:
+            raise DataError(f"{label} missing-value marker is incompatible")
+
+    if quality["requested_start"] != config.start_date.isoformat():
+        raise DataError("prepared data start date does not match active configuration")
+    if quality["requested_end"] != config.end_date.isoformat():
+        raise DataError("prepared data end date does not match active configuration")
+    if quality["time_standard"] != config.time_standard:
+        raise DataError("prepared data time standard does not match active configuration")
+    _validate_provenance_location(
+        quality["requested_location"], label="quality report requested location", config=config
+    )
+    _validate_provenance_location(
+        sidecar["reported_location"],
+        label="raw sidecar reported location",
+        config=config,
+        tolerance=0.001,
+    )
+    _validate_provenance_units(quality["units"], label="quality report", config=config)
+    _validate_provenance_units(sidecar["units"], label="raw sidecar", config=config)
+
+    expected_days = (config.end_date - config.start_date).days + 1
+    if type(quality["calendar_days"]) is not int or quality["calendar_days"] != expected_days:
+        raise DataError("quality report calendar_days does not match the configured date range")
+    if not isinstance(sidecar["retrieved_utc"], str) or not sidecar["retrieved_utc"]:
+        raise DataError("raw sidecar retrieved_utc must be a nonempty string")
+
+    expected_parameters = {
+        "latitude": config.latitude,
+        "longitude": config.longitude,
+        "start_date": config.start_date.isoformat(),
+        "end_date": config.end_date.isoformat(),
+        "parameters": list(config.parameters),
+        "community": config.community,
+        "time_standard": config.time_standard,
+        "format": "JSON",
+    }
+    if sidecar["request_parameters"] != expected_parameters:
+        raise DataError("raw sidecar request parameters do not match active configuration")
+    if sidecar["request_url"] != request_url(config):
+        raise DataError("raw data provenance URL does not match active configuration")
+
+    parameters = set(config.parameters)
+    missing_counts = quality["missing_counts_by_variable"]
+    missing_dates = quality["missing_dates_by_variable"]
+    missing_by_year = quality["missing_counts_by_year"]
+    if not isinstance(missing_counts, dict) or set(missing_counts) != parameters:
+        raise DataError("quality report missing_counts_by_variable has an invalid schema")
+    if not isinstance(missing_dates, dict) or set(missing_dates) != parameters:
+        raise DataError("quality report missing_dates_by_variable has an invalid schema")
+    for parameter in config.parameters:
+        count = missing_counts[parameter]
+        dates = missing_dates[parameter]
+        if type(count) is not int or count < 0 or not isinstance(dates, list):
+            raise DataError(f"quality report missingness for {parameter} has an invalid schema")
+        if count != len(dates) or not all(isinstance(item, str) for item in dates):
+            raise DataError(f"quality report missing dates for {parameter} are inconsistent")
+    if not isinstance(missing_by_year, dict) or not all(
+        isinstance(year, str)
+        and isinstance(counts, dict)
+        and set(counts) == parameters
+        and all(type(count) is int and count >= 0 for count in counts.values())
+        for year, counts in missing_by_year.items()
+    ):
+        raise DataError("quality report missing_counts_by_year has an invalid schema")
+    for field in ("complete_case_days", "excluded_days"):
+        if type(quality[field]) is not int or quality[field] < 0:
+            raise DataError(f"quality report {field} must be a nonnegative integer")
+    if quality["complete_case_days"] + quality["excluded_days"] != expected_days:
+        raise DataError("quality report complete and excluded days do not match calendar_days")
+    if (
+        not isinstance(quality["excluded_dates"], list)
+        or len(quality["excluded_dates"]) != quality["excluded_days"]
+    ):
+        raise DataError("quality report excluded_dates does not match excluded_days")
+    if not isinstance(quality["exclusion_policy"], str) or not quality["exclusion_policy"]:
+        raise DataError("quality report exclusion_policy must be a nonempty string")
+
+    if not paths.raw_path.is_file():
+        raise DataError(f"raw source data is missing at {paths.raw_path}; run fetch first")
+    try:
+        raw_bytes = paths.raw_path.read_bytes()
+    except OSError as error:
+        raise DataError(f"cannot read raw source data: {error}") from error
+    raw_digest = hashlib.sha256(raw_bytes).hexdigest()
+    digests = (sidecar["sha256"], quality["raw_sha256"])
+    if not all(
+        isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value) for value in digests
+    ):
+        raise DataError("raw source checksum metadata must contain SHA-256 digests")
+    if not (sidecar["sha256"].lower() == quality["raw_sha256"].lower() == raw_digest):
+        raise DataError("raw response bytes do not match sidecar and quality report checksums")
+
+    if not paths.daily_path.is_file():
+        raise DataError(f"prepared daily data is missing at {paths.daily_path}; run prepare first")
+    try:
+        prepared_bytes = paths.daily_path.read_bytes()
+    except OSError as error:
+        raise DataError(f"cannot read prepared daily data: {error}") from error
+    prepared_digest = quality["prepared_daily_csv_sha256"]
+    if not isinstance(prepared_digest, str) or not re.fullmatch(
+        r"[0-9a-fA-F]{64}", prepared_digest
+    ):
+        raise DataError("prepared daily checksum must be a SHA-256 digest")
+    if hashlib.sha256(prepared_bytes).hexdigest() != prepared_digest.lower():
+        raise DataError("prepared daily CSV bytes do not match the quality report checksum")
+    return quality, prepared_bytes
+
+
+def _parse_development_daily(prepared_bytes: bytes, config: ExperimentConfig) -> pd.DataFrame:
+    """Parse only verified CSV rows through validation; never parse final-test rows."""
     development_days = (config.validation_end - config.start_date).days + 1
     if development_days <= 0:
         raise DataError("validation end date must follow the experiment start date")
     try:
-        data = pd.read_csv(paths.daily_path, nrows=development_days, parse_dates=["date"])
-    except (OSError, ValueError, pd.errors.ParserError) as error:
+        data = pd.read_csv(
+            io.BytesIO(prepared_bytes),
+            nrows=development_days,
+            parse_dates=["date"],
+        )
+    except (ValueError, pd.errors.ParserError) as error:
         raise DataError(f"cannot read prepared development data: {error}") from error
+    expected_columns = ["date", *config.parameters]
+    if list(data.columns) != expected_columns:
+        raise DataError(
+            "prepared development CSV columns do not match the configured schema: "
+            f"expected {expected_columns}, found {list(data.columns)}"
+        )
     expected = pd.date_range(config.start_date, config.validation_end, freq="D")
     if len(data) != len(expected):
         raise DataError(
             f"prepared development data has {len(data)} rows; expected {len(expected)} "
             "through the validation boundary"
         )
-    dates = pd.DatetimeIndex(data["date"])
+    try:
+        dates = pd.DatetimeIndex(data["date"])
+    except (TypeError, ValueError) as error:
+        raise DataError("prepared development dates contain invalid values") from error
     if not dates.equals(expected):
         raise DataError("prepared development rows are not a complete sorted daily calendar")
     return data.set_index("date")
+
+
+def _load_development_daily_with_bytes(
+    paths: ProjectPaths, config: ExperimentConfig
+) -> tuple[pd.DataFrame, bytes]:
+    """Load the verified development frame and retain its exact prepared CSV bytes."""
+    if not paths.daily_path.is_file():
+        raise DataError(
+            f"prepared daily data is missing at {paths.daily_path}; run fetch and prepare first"
+        )
+    _, prepared_bytes = _validate_development_provenance(paths, config)
+    return _parse_development_daily(prepared_bytes, config), prepared_bytes
+
+
+def load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.DataFrame:
+    """Load verified data through validation; never parse final-test rows."""
+    daily, _ = _load_development_daily_with_bytes(paths, config)
+    return daily
 
 
 def _sha256_file(path: Path) -> str:
@@ -274,10 +596,94 @@ def _sha256_file(path: Path) -> str:
 
 
 def _sha256_daily_frame(daily: pd.DataFrame) -> str:
+    """Hash a frame using the historical pandas CSV encoding for holdout context."""
     payload = (
         daily.rename_axis("date").to_csv(index_label="date", lineterminator="\n").encode("utf-8")
     )
     return hashlib.sha256(payload).hexdigest()
+
+
+def _prepared_csv_prefix_bytes(prepared_bytes: bytes, development_rows: int) -> bytes:
+    """Return the exact header and configured number of one-line prepared CSV records."""
+    if type(development_rows) is not int or development_rows <= 0:
+        raise ValueError("development row count must be a positive integer")
+    lines = prepared_bytes.splitlines(keepends=True)
+    required_lines = development_rows + 1
+    if len(lines) < required_lines:
+        raise ValueError("prepared CSV does not contain the complete development prefix")
+    prefix = b"".join(lines[:required_lines])
+    if b'"' in prefix:
+        raise ValueError("prepared CSV development prefix contains unsupported quoted rows")
+    return prefix
+
+
+def _sha256_prepared_csv_prefix(prepared_bytes: bytes, development_rows: int) -> str:
+    """Hash the exact CSV header and persisted rows through the development boundary."""
+    prefix = _prepared_csv_prefix_bytes(prepared_bytes, development_rows)
+    digest = hashlib.sha256()
+    digest.update(
+        f"sunreserve-prepared-csv-prefix\t{DEVELOPMENT_ROWS_DIGEST_FORMAT}\t"
+        f"{development_rows}\n".encode("ascii")
+    )
+    digest.update(prefix)
+    return digest.hexdigest()
+
+
+def _sha256_legacy_prepared_csv_prefix(prepared_bytes: bytes, development_rows: int) -> str:
+    """Reproduce the intermediate float-hex manifest hash directly from persisted CSV."""
+    prefix = _prepared_csv_prefix_bytes(prepared_bytes, development_rows)
+    try:
+        records = list(csv.reader(io.StringIO(prefix.decode("utf-8"), newline="")))
+    except (UnicodeDecodeError, csv.Error) as error:
+        raise ValueError("prepared CSV development prefix cannot be parsed") from error
+    if len(records) != development_rows + 1 or not records or not records[0]:
+        raise ValueError("prepared CSV development prefix has an invalid record count")
+    header = records[0]
+    if header[0] != "date" or any(len(record) != len(header) for record in records[1:]):
+        raise ValueError("prepared CSV development prefix has an invalid schema")
+
+    digest = hashlib.sha256()
+    digest.update(
+        f"sunreserve-development-rows\t{LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT}\n".encode()
+    )
+    digest.update(("\t".join(header) + "\n").encode("utf-8"))
+    for record in records[1:]:
+        try:
+            iso_date = datetime.fromisoformat(record[0]).date().isoformat()
+            numeric_values = [float(value) for value in record[1:]]
+        except (ValueError, OverflowError) as error:
+            raise ValueError("prepared CSV development prefix contains invalid values") from error
+        if not all(math.isfinite(value) for value in numeric_values):
+            raise ValueError("prepared CSV development prefix contains non-finite values")
+        fields = [iso_date, *(value.hex() for value in numeric_values)]
+        digest.update(("\t".join(fields) + "\n").encode("ascii"))
+    return digest.hexdigest()
+
+
+def _development_rows_digest_matches(
+    daily: pd.DataFrame,
+    prepared_bytes: bytes,
+    development_rows: int,
+    expected: Any,
+    digest_format: Any,
+) -> bool:
+    """Verify marked digests; markerless legacy values rely on the full CSV checksum."""
+    if not isinstance(expected, str) or re.fullmatch(r"[0-9a-fA-F]{64}", expected) is None:
+        return False
+    if digest_format is None:
+        # Older manifests hashed pandas CSV reserialization, which varies by pandas release.
+        # Callers verify the complete prepared CSV bytes against its manifest-bound digest first.
+        return True
+    try:
+        if digest_format == DEVELOPMENT_ROWS_DIGEST_FORMAT:
+            actual = _sha256_prepared_csv_prefix(prepared_bytes, development_rows)
+        elif digest_format == LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT:
+            actual = _sha256_legacy_prepared_csv_prefix(prepared_bytes, development_rows)
+        else:
+            return False
+        return actual == expected.lower()
+    except (TypeError, ValueError, OverflowError):
+        return False
 
 
 def _canonical_json_hash(values: Any) -> str:
@@ -296,6 +702,7 @@ def _code_hashes() -> dict[str, str]:
         "evaluate": repository / "src" / "sunreserve" / "evaluate.py",
         "cli": repository / "src" / "sunreserve" / "__main__.py",
         "inference": repository / "src" / "sunreserve" / "inference.py",
+        "source_provenance": repository / "src" / "sunreserve" / "source_provenance.py",
     }
     return {name: _sha256_file(path) for name, path in paths.items()}
 
@@ -313,9 +720,25 @@ def _atomic_write_text(path: Path, content: str) -> None:
         raise
 
 
-def run_validation(paths: ProjectPaths, config: ExperimentConfig) -> ValidationSelection:
+def run_validation(
+    paths: ProjectPaths,
+    config: ExperimentConfig,
+    *,
+    output_dir: Path | None = None,
+    model_path: Path | None = None,
+    recorded_model_path: Path | None = None,
+    _verified_daily: pd.DataFrame | None = None,
+    _verified_prepared_bytes: bytes | None = None,
+) -> ValidationSelection:
     """Run cached validation-only selection and write versioned development artifacts."""
-    daily = load_development_daily(paths, config)
+    if _verified_daily is None:
+        daily, prepared_bytes = _load_development_daily_with_bytes(paths, config)
+    else:
+        daily = _verified_daily
+        if _verified_prepared_bytes is None:
+            _, prepared_bytes = _validate_development_provenance(paths, config)
+        else:
+            prepared_bytes = _verified_prepared_bytes
     rows, audit = build_supervised_rows(
         daily,
         config,
@@ -333,8 +756,10 @@ def run_validation(paths: ProjectPaths, config: ExperimentConfig) -> ValidationS
         raise RuntimeError("validation rows unexpectedly include the final test partition")
 
     selection = select_validation_model(partitions["train"], partitions["validation"], config)
+    model_output = model_path or paths.model_path
+    validation_output = output_dir or paths.validation_dir
     model_bundle, model_bundle_sha256 = write_model_bundle(
-        partitions["train"], config, paths.model_path
+        partitions["train"], config, model_output
     )
     selection = ValidationSelection(
         selected_model=selection.selected_model,
@@ -375,7 +800,11 @@ def run_validation(paths: ProjectPaths, config: ExperimentConfig) -> ValidationS
         "prepared_daily_csv_sha256": json.loads(paths.quality_path.read_text(encoding="utf-8"))[
             "prepared_daily_csv_sha256"
         ],
-        "prepared_development_rows_sha256": _sha256_daily_frame(daily),
+        "prepared_development_rows_sha256": _sha256_prepared_csv_prefix(
+            prepared_bytes,
+            (config.validation_end - config.start_date).days + 1,
+        ),
+        "prepared_development_rows_digest_format": DEVELOPMENT_ROWS_DIGEST_FORMAT,
     }
     config_values = config.to_dict()
     config_hash = _canonical_json_hash(config_values)
@@ -389,7 +818,7 @@ def run_validation(paths: ProjectPaths, config: ExperimentConfig) -> ValidationS
         "configuration_sha256": config_hash,
         "input_hashes": input_hashes,
         "code_hashes": code_hashes,
-        "code_revision": "uncommitted",
+        **source_provenance(),
         "environment": {
             "python": platform.python_version(),
             "numpy": importlib.metadata.version("numpy"),
@@ -454,7 +883,7 @@ def run_validation(paths: ProjectPaths, config: ExperimentConfig) -> ValidationS
             ),
         },
         "model_bundle": {
-            "path": paths.model_path.relative_to(paths.root).as_posix(),
+            "path": (recorded_model_path or model_output).relative_to(paths.root).as_posix(),
             "sha256": model_bundle_sha256,
             "model_id": model_bundle.model_id,
             "training_split": "train",
@@ -531,14 +960,90 @@ def run_validation(paths: ProjectPaths, config: ExperimentConfig) -> ValidationS
         for name, content in development_artifacts.items()
     }
     manifest_content = json.dumps(manifest, indent=2, sort_keys=True, allow_nan=False) + "\n"
-    _atomic_write_text(paths.validation_dir / "validation_predictions.csv", predictions_content)
-    _atomic_write_text(paths.validation_dir / "validation_metrics.json", metrics_content)
-    _atomic_write_text(paths.validation_dir / "selection_manifest.json", manifest_content)
-    _atomic_write_text(
-        paths.validation_dir / "decision_predictions.csv", decision_predictions_content
-    )
-    _atomic_write_text(paths.validation_dir / "decision_metrics.csv", decision_metrics_content)
+    _atomic_write_text(validation_output / "validation_predictions.csv", predictions_content)
+    _atomic_write_text(validation_output / "validation_metrics.json", metrics_content)
+    _atomic_write_text(validation_output / "selection_manifest.json", manifest_content)
+    _atomic_write_text(validation_output / "decision_predictions.csv", decision_predictions_content)
+    _atomic_write_text(validation_output / "decision_metrics.csv", decision_metrics_content)
     return selection
+
+
+def run_experiment_validation(
+    paths: ProjectPaths, config: ExperimentConfig, run_id: str
+) -> tuple[ValidationSelection, Path]:
+    """Publish an immutable, validation-only experiment directory atomically."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", run_id):
+        raise ValueError("--run-id must be 1-64 safe letters, digits, hyphens, or underscores")
+    experiments = paths.root / "artifacts" / "experiments"
+    locks = experiments / ".locks"
+    reservation = locks / f"{run_id}.lock"
+    destination = experiments / run_id
+    if destination.exists():
+        raise FileExistsError(f"experiment already exists and is immutable: {destination}")
+    if reservation.exists():
+        raise FileExistsError(
+            f"experiment ID is reserved (active or stale); inspect and resolve manually: {run_id}"
+        )
+
+    verified_daily, verified_prepared_bytes = _load_development_daily_with_bytes(paths, config)
+    experiments.mkdir(parents=True, exist_ok=True)
+    locks.mkdir(exist_ok=True)
+    try:
+        reservation.mkdir()
+    except FileExistsError as error:
+        raise FileExistsError(
+            f"experiment ID is reserved (active or stale); inspect and resolve manually: {run_id}"
+        ) from error
+    staging: Path | None = None
+    try:
+        staging = Path(tempfile.mkdtemp(prefix=f".{run_id}-", dir=experiments))
+        validation_dir = staging / "validation"
+        model_path = staging / "models" / "ridge_model.json"
+        validation_dir.mkdir(parents=True)
+        model_path.parent.mkdir(parents=True)
+        selection = run_validation(
+            paths,
+            config,
+            output_dir=validation_dir,
+            model_path=model_path,
+            recorded_model_path=destination / "models" / "ridge_model.json",
+            _verified_daily=verified_daily,
+            _verified_prepared_bytes=verified_prepared_bytes,
+        )
+        manifest_path = validation_dir / "selection_manifest.json"
+        selection_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        experiment_manifest = {
+            "schema_version": 1,
+            "artifact_type": "sunreserve_validation_experiment",
+            **source_provenance(),
+            "run_id": run_id,
+            "created_utc": datetime.now(UTC).isoformat(),
+            "selected_model": selection.selected_model,
+            "selected_approach": selection_manifest["decision_selection"]["selected_model"],
+            "model_path": (destination / "models" / "ridge_model.json")
+            .relative_to(paths.root)
+            .as_posix(),
+            "model_sha256": _sha256_file(model_path),
+            "selection_manifest_sha256": _sha256_file(manifest_path),
+            "configuration": config.to_dict(),
+            "configuration_sha256": _canonical_json_hash(config.to_dict()),
+        }
+        (staging / "experiment_manifest.json").write_text(
+            json.dumps(experiment_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        (staging / "config.json").write_text(
+            json.dumps(config.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        if destination.exists():
+            raise FileExistsError(f"experiment already exists and is immutable: {destination}")
+        staging.rename(destination)
+        return selection, destination / "models" / "ridge_model.json"
+    except Exception:
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
+        raise
+    finally:
+        reservation.rmdir()
 
 
 @dataclass(frozen=True)
@@ -549,6 +1054,174 @@ class FinalizedRun:
     run_dir: Path
     row_counts: dict[str, int]
     selected_model: str
+
+
+def _read_finalized_json_object(payload: bytes, label: str) -> dict[str, Any]:
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key {key!r}")
+            result[key] = value
+        return result
+
+    def finite_float(value: str) -> float:
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError("non-finite JSON number")
+        return result
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant {value}")
+
+    try:
+        result = json.loads(
+            payload.decode("utf-8"),
+            object_pairs_hook=unique_object,
+            parse_float=finite_float,
+            parse_constant=reject_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise DataError(f"{label} is unreadable or contains invalid JSON: {error}") from error
+    if not isinstance(result, dict):
+        raise DataError(f"{label} must contain a JSON object")
+    return result
+
+
+def _finalized_number(value: Any, label: str, *, nonnegative: bool = False) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise DataError(f"{label} must be a finite number")
+    try:
+        number = float(value)
+    except OverflowError as error:
+        raise DataError(f"{label} must be finite") from error
+    if not math.isfinite(number):
+        raise DataError(f"{label} must be finite")
+    if nonnegative and number < 0:
+        raise DataError(f"{label} must be nonnegative")
+    return number
+
+
+def _require_finalized_columns(frame: pd.DataFrame, expected: set[str], label: str) -> None:
+    if frame.columns.has_duplicates or set(frame.columns) != expected:
+        raise DataError(f"{label} columns do not match the finalized schema")
+
+
+def _finalized_dates(series: pd.Series, label: str) -> pd.DatetimeIndex:
+    values = series.tolist()
+    if any(
+        not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)
+        for value in values
+    ):
+        raise DataError(f"{label} contains an invalid date")
+    try:
+        dates = pd.DatetimeIndex(pd.to_datetime(values, format="%Y-%m-%d", errors="raise"))
+    except (TypeError, ValueError, OverflowError) as error:
+        raise DataError(f"{label} contains an invalid date: {error}") from error
+    if dates.isna().any():
+        raise DataError(f"{label} contains an invalid date")
+    return dates
+
+
+def _compare_finalized_json(actual: Any, expected: Any, label: str) -> None:
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict) or set(actual) != set(expected):
+            raise DataError(f"{label} has an invalid schema")
+        for key, expected_value in expected.items():
+            _compare_finalized_json(actual[key], expected_value, f"{label}.{key}")
+        return
+    if isinstance(expected, float):
+        actual_number = _finalized_number(actual, label)
+        if not math.isclose(actual_number, expected, rel_tol=1e-12, abs_tol=1e-12):
+            raise DataError(f"{label} does not match the finalized predictions")
+        return
+    if isinstance(expected, int):
+        if type(actual) is not int or actual != expected:
+            raise DataError(f"{label} does not match the finalized predictions")
+        return
+    if actual != expected:
+        raise DataError(f"{label} does not match the finalized predictions")
+
+
+def _validate_finalized_forecast_metrics(
+    payload: dict[str, Any], prediction_frame: pd.DataFrame, selected_model: str
+) -> None:
+    expected_top_fields = {
+        "schema_version",
+        "partition",
+        "target_units",
+        "selected_model_frozen_on_validation",
+        "training_only_low_solar_threshold_kwh_m2_day",
+        "metrics",
+    }
+    if set(payload) != expected_top_fields:
+        raise DataError("forecast metrics have an invalid schema")
+    if (
+        type(payload["schema_version"]) is not int
+        or payload["schema_version"] != FINAL_RUN_SCHEMA_VERSION
+        or payload["partition"] != "test"
+        or payload["target_units"] != "kWh/m^2/day"
+        or payload["selected_model_frozen_on_validation"] != selected_model
+    ):
+        raise DataError("forecast metrics schema, partition, units, or selected model are invalid")
+    threshold = _finalized_number(
+        payload["training_only_low_solar_threshold_kwh_m2_day"],
+        "forecast low-solar threshold",
+        nonnegative=True,
+    )
+    metrics = payload["metrics"]
+    if not isinstance(metrics, dict) or set(metrics) != FINAL_FORECAST_APPROACHES:
+        raise DataError("forecast metrics must cover all supported approaches")
+    actual = prediction_frame["actual_radiation_kwh_m2_day"].to_numpy(dtype=float)
+    date_values = pd.DatetimeIndex(prediction_frame["target_date"])
+    columns = {
+        "persistence": "persistence_prediction_kwh_m2_day",
+        "seasonal_mean": "seasonal_mean_prediction_kwh_m2_day",
+        "ridge": "ridge_prediction_kwh_m2_day",
+    }
+    expected_metrics = {
+        approach: forecast_metrics(
+            actual,
+            prediction_frame[column].to_numpy(dtype=float),
+            date_values,
+            low_solar_threshold=threshold,
+        )
+        for approach, column in columns.items()
+    }
+    for approach in FINAL_FORECAST_APPROACHES:
+        metric = metrics[approach]
+        if not isinstance(metric, dict) or set(metric) != FINAL_FORECAST_METRIC_FIELDS:
+            raise DataError(f"forecast metrics for {approach} have an invalid schema")
+        _compare_finalized_json(metric, expected_metrics[approach], f"forecast metrics {approach}")
+
+
+def _require_finalized_numeric_columns(
+    frame: pd.DataFrame,
+    columns: set[str],
+    label: str,
+    *,
+    nonnegative: set[str] | None = None,
+    allow_nan_by_approach: set[str] | None = None,
+) -> None:
+    nonnegative = nonnegative or set()
+    allow_nan_by_approach = allow_nan_by_approach or set()
+    for column in columns:
+        try:
+            values = pd.to_numeric(frame[column], errors="raise").to_numpy(dtype=float)
+        except (OverflowError, TypeError, ValueError) as error:
+            raise DataError(f"{label} field {column} must be numeric") from error
+        missing = np.isnan(values)
+        if column in allow_nan_by_approach:
+            permitted_missing = frame["approach"].eq("always_prepare_backup").to_numpy()
+            if (missing & ~permitted_missing).any() or np.isinf(values).any():
+                raise DataError(f"{label} field {column} contains non-finite values")
+            finite = values[~missing]
+        else:
+            if not np.isfinite(values).all():
+                raise DataError(f"{label} field {column} contains non-finite values")
+            finite = values
+        if column in nonnegative and (finite < 0).any():
+            raise DataError(f"{label} field {column} must be nonnegative")
 
 
 def _read_json_object(path: Path, label: str) -> dict[str, Any]:
@@ -665,12 +1338,157 @@ def _validate_frozen_development(
         if not path.is_file() or _sha256_file(path) != expected_hash:
             raise DataError(f"development artifact is missing or changed: {name}")
 
-    daily = load_development_daily(paths, config)
-    if _sha256_daily_frame(daily) != input_hashes.get("prepared_development_rows_sha256"):
+    daily, prepared_bytes = _load_development_daily_with_bytes(paths, config)
+    if not _development_rows_digest_matches(
+        daily,
+        prepared_bytes,
+        (config.validation_end - config.start_date).days + 1,
+        input_hashes.get("prepared_development_rows_sha256"),
+        input_hashes.get("prepared_development_rows_digest_format"),
+    ):
         raise DataError("prepared training/validation rows differ from the frozen manifest")
     # The exact manifest digest and all source/prepared/development inputs/code were
     # verified above before the finalizer parses the full daily file.
     return manifest, config, quality, daily
+
+
+def _validate_experiment_development(
+    paths: ProjectPaths,
+    experiment_id: str,
+    expected_manifest_sha256: str,
+    expected_config: ExperimentConfig | None,
+) -> tuple[dict[str, Any], ExperimentConfig, dict[str, Any], pd.DataFrame, dict[str, Any]]:
+    """Verify one experiment's identity and artifacts before delegating freeze checks."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", experiment_id):
+        raise ValueError("experiment_id must be 1-64 safe letters, digits, hyphens, or underscores")
+    experiment_dir = paths.root / "artifacts" / "experiments" / experiment_id
+    experiments_dir = paths.root / "artifacts" / "experiments"
+    if experiment_dir.resolve().parent != experiments_dir.resolve():
+        raise DataError("experiment directory resolves outside the experiment artifact root")
+    manifest_path = experiment_dir / "experiment_manifest.json"
+    experiment = _read_json_object(manifest_path, "experiment manifest")
+    if (
+        experiment.get("schema_version") != 1
+        or experiment.get("artifact_type") != "sunreserve_validation_experiment"
+        or experiment.get("run_id") != experiment_id
+    ):
+        raise DataError("experiment manifest schema, type, or identifier is incompatible")
+    try:
+        config = ExperimentConfig.from_dict(experiment["configuration"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise DataError(f"experiment configuration is invalid: {error}") from error
+    config_digest = _canonical_json_hash(config.to_dict())
+    if (
+        experiment["configuration"] != config.to_dict()
+        or experiment.get("configuration_sha256") != config_digest
+    ):
+        raise DataError("experiment configuration digest does not match its content")
+    if expected_config is not None and expected_config.to_dict() != config.to_dict():
+        raise DataError("active configuration does not match the selected experiment")
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", expected_manifest_sha256):
+        raise ValueError("--manifest-sha256 must be a 64-character SHA-256 hex digest")
+    selection_path = experiment_dir / "validation" / "selection_manifest.json"
+    expected_selection_path = f"artifacts/experiments/{experiment_id}/models/ridge_model.json"
+    if experiment.get("model_path") != expected_selection_path:
+        raise DataError("experiment model path is missing or incompatible")
+    actual_selection_digest = _sha256_file(selection_path) if selection_path.is_file() else None
+    model_path = experiment_dir / "models" / "ridge_model.json"
+    if (
+        (experiment_dir / "validation").resolve().parent != experiment_dir.resolve()
+        or (experiment_dir / "models").resolve().parent != experiment_dir.resolve()
+        or selection_path.is_symlink()
+        or model_path.is_symlink()
+    ):
+        raise DataError("experiment validation or model artifact resolves outside its directory")
+    if (
+        actual_selection_digest is None
+        or actual_selection_digest.lower() != expected_manifest_sha256.lower()
+        or actual_selection_digest.lower()
+        != str(experiment.get("selection_manifest_sha256", "")).lower()
+    ):
+        raise DataError("selection manifest SHA-256 does not match the frozen experiment digest")
+    if not model_path.is_file() or _sha256_file(model_path) != experiment.get("model_sha256"):
+        raise DataError("experiment model is missing or differs from its recorded checksum")
+    selection = _read_json_object(selection_path, "selection manifest")
+    bundle = selection.get("model_bundle", {})
+    if (
+        bundle.get("path") != expected_selection_path
+        or bundle.get("sha256") != experiment.get("model_sha256")
+        or selection.get("configuration_sha256") != config_digest
+        or experiment.get("selected_model")
+        != selection.get("model_selection", {}).get("selected_model")
+        or experiment.get("selected_approach")
+        != selection.get("decision_selection", {}).get("selected_model")
+    ):
+        raise DataError(
+            "selection manifest model or configuration identity differs from experiment"
+        )
+    scoped_paths = copy(paths)
+    scoped_paths.validation_dir = experiment_dir / "validation"
+    scoped_paths.model_path = model_path
+    manifest, verified_config, quality, development = _validate_frozen_development(
+        scoped_paths,
+        expected_manifest_sha256=expected_manifest_sha256,
+        expected_config=expected_config,
+    )
+    return manifest, verified_config, quality, development, experiment
+
+
+def _load_finalization_model_bundle(
+    paths: ProjectPaths,
+    selection_manifest: dict[str, Any],
+    source_experiment: dict[str, Any] | None,
+) -> tuple[RidgeModelBundle, dict[str, Any]]:
+    """Load the exact frozen numeric model after source identity checks pass."""
+    bundle_manifest = selection_manifest.get("model_bundle")
+    if not isinstance(bundle_manifest, dict):
+        raise DataError("frozen selection manifest has no model bundle identity")
+    if source_experiment is None:
+        expected_relative_path = paths.model_path.relative_to(paths.root).as_posix()
+    else:
+        expected_relative_path = source_experiment.get("model_path")
+        if not isinstance(expected_relative_path, str):
+            raise DataError("frozen experiment has no model bundle path")
+    relative_path = bundle_manifest.get("path")
+    if relative_path != expected_relative_path or not isinstance(relative_path, str):
+        raise DataError("frozen model bundle path differs from its validated source")
+    path_parts = relative_path.split("/")
+    if "\\" in relative_path or any(part in {"", ".", ".."} for part in path_parts):
+        raise DataError("frozen model bundle path is invalid")
+    model_path = paths.root.joinpath(*path_parts)
+    try:
+        model_path.resolve().relative_to(paths.root.resolve())
+    except ValueError as error:
+        raise DataError("frozen model bundle resolves outside the project root") from error
+
+    expected_sha256 = bundle_manifest.get("sha256")
+    if not isinstance(expected_sha256, str) or not re.fullmatch(
+        r"[0-9a-fA-F]{64}", expected_sha256
+    ):
+        raise DataError("frozen model bundle checksum is invalid")
+    try:
+        bundle = load_model_bundle(model_path, expected_sha256=expected_sha256)
+    except ModelArtifactError as error:
+        raise DataError(f"frozen model bundle is invalid: {error}") from error
+
+    expected_period = [bundle.training_start.isoformat(), bundle.training_end.isoformat()]
+    if (
+        bundle_manifest.get("model_id") != bundle.model_id
+        or bundle_manifest.get("training_split") != "train"
+        or type(bundle_manifest.get("training_rows")) is not int
+        or bundle_manifest.get("training_rows") != bundle.training_rows
+        or bundle_manifest.get("training_target_period") != expected_period
+    ):
+        raise DataError("frozen model bundle metadata does not match its numeric model")
+    identity = {
+        "path": relative_path,
+        "model_id": bundle.model_id,
+        "sha256": bundle.artifact_sha256,
+        "training_split": "train",
+        "training_rows": bundle.training_rows,
+        "training_target_period": expected_period,
+    }
+    return bundle, identity
 
 
 def _load_full_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.DataFrame:
@@ -711,6 +1529,7 @@ def finalize_run(
     manifest_sha256: str,
     run_id: str | None = None,
     expected_config: ExperimentConfig | None = None,
+    experiment_id: str | None = None,
 ) -> FinalizedRun:
     """Evaluate the held-out test only after an explicitly frozen, verified manifest."""
     safe_id = _safe_run_id(run_id)
@@ -721,13 +1540,40 @@ def finalize_run(
             f"finalized run directory already exists and will not be overwritten: {run_dir}"
         )
 
-    manifest, config, quality, _development = _validate_frozen_development(
-        paths,
-        expected_manifest_sha256=manifest_sha256,
-        expected_config=expected_config,
+    source_experiment = None
+    selection_source_dir = paths.validation_dir
+    if experiment_id is None:
+        manifest, config, quality, _development = _validate_frozen_development(
+            paths,
+            expected_manifest_sha256=manifest_sha256,
+            expected_config=expected_config,
+        )
+    else:
+        manifest, config, quality, _development, source_experiment = (
+            _validate_experiment_development(
+                paths,
+                experiment_id,
+                manifest_sha256,
+                expected_config,
+            )
+        )
+        selection_source_dir = (
+            paths.root / "artifacts" / "experiments" / experiment_id / "validation"
+        )
+    model_bundle, model_bundle_identity = _load_finalization_model_bundle(
+        paths, manifest, source_experiment
     )
     daily = _load_full_daily(paths, config)
     rows, split_audit = build_supervised_rows(daily, config)
+    excluded_dates_by_split: dict[str, list[dict[str, Any]]] = {
+        name: [] for name in ("train", "validation", "test")
+    }
+    for excluded in split_audit["excluded_dates"]:
+        split_name = _split_name(pd.Timestamp(excluded["target_date"]), config)
+        excluded_dates_by_split[split_name].append(excluded)
+    excluded_rows_by_split = {
+        name: len(excluded_dates) for name, excluded_dates in excluded_dates_by_split.items()
+    }
     partitions = split_supervised_rows(rows)
     training = partitions["train"]
     validation = partitions["validation"]
@@ -752,9 +1598,12 @@ def finalize_run(
     ):
         raise DataError("training-only low-solar threshold does not match the frozen manifest")
 
-    predictions = baseline_predictions(training, test, allow_final_test=True)
-    ridge = fit_ridge(training, config)
-    predictions["ridge_prediction_kwh_m2_day"] = predict_ridge(ridge, test).to_numpy()
+    predictions = test.loc[:, ["issue_date", "target_date", TARGET_COLUMN]].copy()
+    predictions["persistence_prediction_kwh_m2_day"] = predict_persistence(test).to_numpy()
+    predictions["seasonal_mean_prediction_kwh_m2_day"] = predict_seasonal_mean_bundle(
+        model_bundle, test
+    ).to_numpy()
+    predictions["ridge_prediction_kwh_m2_day"] = predict_ridge_bundle(model_bundle, test).to_numpy()
     predictions = predictions.rename(columns={TARGET_COLUMN: "actual_radiation_kwh_m2_day"})
     predictions["split"] = "test"
     predictions["selected_model"] = manifest["model_selection"]["selected_model"]
@@ -844,7 +1693,7 @@ def finalize_run(
     decision_metrics.insert(1, "partition", "test")
     predictions.insert(0, "artifact_schema_version", FINAL_RUN_SCHEMA_VERSION)
 
-    selection_manifest_bytes = (paths.validation_dir / "selection_manifest.json").read_bytes()
+    selection_manifest_bytes = (selection_source_dir / "selection_manifest.json").read_bytes()
     assumptions_path = paths.root / "docs" / "assumptions.md"
     if not assumptions_path.is_file():
         raise DataError(f"assumptions documentation is missing: {assumptions_path}")
@@ -861,13 +1710,18 @@ def finalize_run(
     artifact_hashes = {name: _sha256_text(value) for name, value in payloads.items()}
     run_manifest = {
         "schema_version": FINAL_RUN_SCHEMA_VERSION,
-        "artifact_type": "sunreserve_finalized_historical_replay",
+        "artifact_type": (
+            "sunreserve_finalized_experiment"
+            if source_experiment is not None
+            else "sunreserve_finalized_historical_replay"
+        ),
         "run_id": safe_id,
         "created_utc": datetime.now(UTC).isoformat(),
         "partition": "test",
         "test_inspected": True,
         "test_inspected_utc": datetime.now(UTC).isoformat(),
         "selected_model_frozen_on_validation": manifest["model_selection"]["selected_model"],
+        "model_bundle": model_bundle_identity,
         "selection_manifest_sha256": manifest_sha256.lower(),
         "configuration_sha256": manifest["configuration_sha256"],
         "source_checksums": {
@@ -879,7 +1733,7 @@ def finalize_run(
             ],
         },
         "current_code_hashes": _code_hashes(),
-        "code_revision": "uncommitted",
+        **source_provenance(),
         "environment": {
             "python": platform.python_version(),
             "numpy": importlib.metadata.version("numpy"),
@@ -900,8 +1754,9 @@ def finalize_run(
             "train": int(len(training)),
             "validation": int(len(validation)),
             "test": int(len(test)),
-            "test_excluded": int(split_audit["excluded_rows"]),
         },
+        "excluded_rows_by_split": excluded_rows_by_split,
+        "excluded_dates_by_split": excluded_dates_by_split,
         "feature_schema": list(FEATURE_COLUMNS),
         "artifact_schemas": {name: FINAL_RUN_SCHEMA_VERSION for name in payloads},
         "artifact_sha256": artifact_hashes,
@@ -910,6 +1765,8 @@ def finalize_run(
             "reason": "publication and upload are outside this implementation task",
         },
     }
+    if source_experiment is not None:
+        run_manifest["source_experiment_id"] = source_experiment["run_id"]
     payloads["run_manifest.json"] = _json_text(run_manifest)
 
     temporary_dir = Path(tempfile.mkdtemp(prefix=f".{safe_id}.", dir=paths.runs_dir))
@@ -936,16 +1793,47 @@ def load_finalized_run(run_dir: Path) -> dict[str, Any]:
     """Validate and load only a finalized run directory for report generation."""
     run_dir = run_dir.resolve()
     manifest_path = run_dir / "run_manifest.json"
-    manifest = _read_json_object(manifest_path, "run manifest")
+    try:
+        manifest_bytes = manifest_path.read_bytes()
+    except OSError as error:
+        raise DataError(f"run manifest is unreadable: {error}") from error
+    manifest = _read_finalized_json_object(manifest_bytes, "run manifest")
+    artifact_type = manifest.get("artifact_type")
     if (
-        manifest.get("schema_version") != FINAL_RUN_SCHEMA_VERSION
-        or manifest.get("artifact_type") != "sunreserve_finalized_historical_replay"
+        type(manifest.get("schema_version")) is not int
+        or manifest.get("schema_version") != FINAL_RUN_SCHEMA_VERSION
+        or not isinstance(artifact_type, str)
+        or artifact_type
+        not in {"sunreserve_finalized_historical_replay", "sunreserve_finalized_experiment"}
         or manifest.get("partition") != "test"
         or manifest.get("test_inspected") is not True
     ):
         raise DataError("run manifest is incompatible or does not record an inspected final test")
-    if _safe_run_id(manifest.get("run_id")) != run_dir.name:
+    has_excluded_counts = "excluded_rows_by_split" in manifest
+    has_excluded_dates = "excluded_dates_by_split" in manifest
+    if has_excluded_counts != has_excluded_dates:
+        raise DataError("run manifest excluded-row accounting is incomplete")
+    legacy_row_counts = manifest.get("row_counts")
+    legacy_historical_run = (
+        artifact_type == "sunreserve_finalized_historical_replay"
+        and not has_excluded_counts
+        and not has_excluded_dates
+        and "model_bundle" not in manifest
+        and isinstance(legacy_row_counts, dict)
+        and type(legacy_row_counts.get("test_excluded")) is int
+        and legacy_row_counts["test_excluded"] >= 0
+    )
+    if not legacy_historical_run and not (has_excluded_counts and has_excluded_dates):
+        raise DataError("run manifest excluded-row accounting is incomplete")
+    run_id = manifest.get("run_id")
+    if not isinstance(run_id, str) or _safe_run_id(run_id) != run_dir.name:
         raise DataError("run manifest identifier does not match its finalized directory")
+    if artifact_type == "sunreserve_finalized_experiment":
+        source_id = manifest.get("source_experiment_id")
+        if not isinstance(source_id, str) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", source_id
+        ):
+            raise DataError("finalized experiment run has an invalid source experiment ID")
     expected_names = {
         "predictions.csv",
         "forecast_metrics.json",
@@ -955,55 +1843,209 @@ def load_finalized_run(run_dir: Path) -> dict[str, Any]:
         "selection_manifest.json",
         "assumptions.md",
     }
-    if set(manifest.get("artifact_sha256", {})) != expected_names:
+    artifact_hashes = manifest.get("artifact_sha256")
+    if not isinstance(artifact_hashes, dict) or set(artifact_hashes) != expected_names:
         raise DataError("run manifest does not include every required final artifact checksum")
-    expected_schemas = {name: FINAL_RUN_SCHEMA_VERSION for name in expected_names}
-    if manifest.get("artifact_schemas") != expected_schemas:
+    artifact_schemas = manifest.get("artifact_schemas")
+    if (
+        not isinstance(artifact_schemas, dict)
+        or set(artifact_schemas) != expected_names
+        or any(
+            type(artifact_schemas[name]) is not int
+            or artifact_schemas[name] != FINAL_RUN_SCHEMA_VERSION
+            for name in expected_names
+        )
+    ):
         raise DataError("run manifest artifact schema declarations are incomplete or unsupported")
-    for name, expected_hash in manifest["artifact_sha256"].items():
+    artifact_bytes: dict[str, bytes] = {}
+    for name in sorted(expected_names):
         path = run_dir / name
-        if not path.is_file() or _sha256_file(path) != expected_hash:
+        try:
+            artifact_bytes[name] = path.read_bytes()
+        except OSError as error:
+            raise DataError(f"finalized artifact is missing or has changed: {name}") from error
+        expected_hash = artifact_hashes[name]
+        actual_hash = hashlib.sha256(artifact_bytes[name]).hexdigest()
+        if not isinstance(expected_hash, str) or actual_hash != expected_hash:
             raise DataError(f"finalized artifact is missing or has changed: {name}")
-    if _sha256_file(run_dir / "selection_manifest.json") != manifest.get(
+    if hashlib.sha256(artifact_bytes["selection_manifest.json"]).hexdigest() != manifest.get(
         "selection_manifest_sha256"
     ):
         raise DataError("run selection manifest hash does not match the recorded frozen digest")
 
-    forecast_payload = _read_json_object(run_dir / "forecast_metrics.json", "forecast metrics")
-    if forecast_payload.get("schema_version") != FINAL_RUN_SCHEMA_VERSION:
-        raise DataError("forecast metrics schema version is unsupported")
+    forecast_payload = _read_finalized_json_object(
+        artifact_bytes["forecast_metrics.json"], "forecast metrics"
+    )
+    quality_payload = _read_finalized_json_object(
+        artifact_bytes["data_quality.json"], "data quality report"
+    )
+    selection_payload = _read_finalized_json_object(
+        artifact_bytes["selection_manifest.json"], "selection manifest"
+    )
     if (
-        forecast_payload.get("partition") != "test"
-        or forecast_payload.get("target_units") != "kWh/m^2/day"
+        type(quality_payload.get("schema_version")) is not int
+        or quality_payload["schema_version"] != SCHEMA_VERSION
+        or type(selection_payload.get("schema_version")) is not int
+        or selection_payload["schema_version"] != ARTIFACT_SCHEMA_VERSION
     ):
-        raise DataError("forecast metrics must describe the test partition in radiation units")
+        raise DataError("finalized data quality or selection manifest schema is unsupported")
+    model_identity: dict[str, Any] | None = None
+    if "model_bundle" not in manifest:
+        if not legacy_historical_run:
+            raise DataError("finalized run is missing its frozen model bundle identity")
+    else:
+        candidate_identity = manifest["model_bundle"]
+        expected_identity_fields = {
+            "path",
+            "model_id",
+            "sha256",
+            "training_split",
+            "training_rows",
+            "training_target_period",
+        }
+        if (
+            not isinstance(candidate_identity, dict)
+            or set(candidate_identity) != expected_identity_fields
+            or not isinstance(candidate_identity.get("path"), str)
+            or "\\" in candidate_identity["path"]
+            or candidate_identity["path"].startswith("/")
+            or any(part in {"", ".", ".."} for part in candidate_identity["path"].split("/"))
+            or candidate_identity.get("model_id") != MODEL_ID
+            or not isinstance(candidate_identity.get("sha256"), str)
+            or not re.fullmatch(r"[0-9a-fA-F]{64}", candidate_identity["sha256"])
+            or candidate_identity.get("training_split") != "train"
+            or type(candidate_identity.get("training_rows")) is not int
+            or candidate_identity["training_rows"] <= 0
+        ):
+            raise DataError("finalized run has an invalid frozen model bundle identity")
+        model_period = candidate_identity.get("training_target_period")
+        if (
+            not isinstance(model_period, list)
+            or len(model_period) != 2
+            or any(
+                not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)
+                for value in model_period
+            )
+        ):
+            raise DataError("finalized run has an invalid model training period")
+        try:
+            normalized_model_period = [
+                datetime.strptime(value, "%Y-%m-%d").date().isoformat() for value in model_period
+            ]
+        except ValueError as error:
+            raise DataError(
+                "finalized run model training period contains an invalid date"
+            ) from error
+        if (
+            normalized_model_period != model_period
+            or normalized_model_period[0] > normalized_model_period[1]
+        ):
+            raise DataError("finalized run has an invalid model training period")
+        model_identity = candidate_identity
+        selection_model_identity = selection_payload.get("model_bundle")
+        if (
+            not isinstance(selection_model_identity, dict)
+            or set(selection_model_identity) != expected_identity_fields
+            or type(selection_model_identity.get("training_rows")) is not int
+            or selection_model_identity != model_identity
+        ):
+            raise DataError(
+                "finalized model bundle identity does not match the frozen selection manifest"
+            )
+
+    selected_model = manifest.get("selected_model_frozen_on_validation")
+    if not isinstance(selected_model, str) or selected_model not in FINAL_FORECAST_APPROACHES:
+        raise DataError("run manifest selected model is unsupported")
+    target_periods = manifest.get("target_periods")
+    test_period = target_periods.get("test") if isinstance(target_periods, dict) else None
+    if (
+        not isinstance(test_period, list)
+        or len(test_period) != 2
+        or any(
+            not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)
+            for value in test_period
+        )
+    ):
+        raise DataError("run manifest test target period is invalid")
     try:
-        prediction_frame = pd.read_csv(
-            run_dir / "predictions.csv", parse_dates=["issue_date", "target_date"]
-        )
-        decision_frame = pd.read_csv(run_dir / "decision_metrics.csv")
-        decision_rows = pd.read_csv(
-            run_dir / "decision_predictions.csv", parse_dates=["target_date"]
-        )
-    except (OSError, ValueError, pd.errors.ParserError) as error:
+        normalized_period = [
+            datetime.strptime(value, "%Y-%m-%d").date().isoformat() for value in test_period
+        ]
+    except ValueError as error:
+        raise DataError("run manifest test target period contains an invalid date") from error
+    if normalized_period != test_period or normalized_period[0] > normalized_period[1]:
+        raise DataError("run manifest test target period is invalid")
+    row_counts = manifest.get("row_counts")
+    if (
+        not isinstance(row_counts, dict)
+        or type(row_counts.get("test")) is not int
+        or row_counts["test"] <= 0
+    ):
+        raise DataError("run manifest test row count is invalid")
+    if model_identity is not None:
+        training_period = target_periods.get("training")
+        if (
+            type(row_counts.get("train")) is not int
+            or row_counts["train"] != model_identity["training_rows"]
+            or not isinstance(training_period, list)
+            or len(training_period) != 2
+            or model_identity["training_target_period"][0] < training_period[0]
+            or model_identity["training_target_period"][1] > training_period[1]
+        ):
+            raise DataError("finalized model bundle identity differs from the training manifest")
+
+    try:
+        prediction_frame = pd.read_csv(io.BytesIO(artifact_bytes["predictions.csv"]))
+        decision_frame = pd.read_csv(io.BytesIO(artifact_bytes["decision_metrics.csv"]))
+        decision_rows = pd.read_csv(io.BytesIO(artifact_bytes["decision_predictions.csv"]))
+    except (ValueError, pd.errors.ParserError, pd.errors.EmptyDataError) as error:
         raise DataError(f"finalized tabular artifacts are unreadable: {error}") from error
-    if "artifact_schema_version" not in prediction_frame or set(
-        prediction_frame["artifact_schema_version"]
-    ) != {FINAL_RUN_SCHEMA_VERSION}:
-        raise DataError("predictions.csv schema version is unsupported")
-    if set(prediction_frame.get("split", [])) != {"test"}:
+    _require_finalized_columns(prediction_frame, FINAL_PREDICTION_COLUMNS, "predictions.csv")
+    _require_finalized_columns(
+        decision_frame, FINAL_DECISION_METRIC_COLUMNS, "decision_metrics.csv"
+    )
+    _require_finalized_columns(
+        decision_rows, FINAL_DECISION_PREDICTION_COLUMNS, "decision_predictions.csv"
+    )
+
+    for frame, label in (
+        (prediction_frame, "predictions.csv"),
+        (decision_frame, "decision_metrics.csv"),
+        (decision_rows, "decision_predictions.csv"),
+    ):
+        try:
+            versions = pd.to_numeric(frame["artifact_schema_version"], errors="raise").to_numpy(
+                dtype=float
+            )
+        except (OverflowError, TypeError, ValueError) as error:
+            raise DataError(f"{label} schema version is unsupported") from error
+        if (
+            not np.isfinite(versions).all()
+            or not np.equal(versions, np.floor(versions)).all()
+            or not (versions == FINAL_RUN_SCHEMA_VERSION).all()
+        ):
+            raise DataError(f"{label} schema version is unsupported")
+
+    if prediction_frame.empty:
+        raise DataError("predictions.csv must contain valid final-test target dates")
+    prediction_frame["issue_date"] = _finalized_dates(
+        prediction_frame["issue_date"], "predictions.csv issue_date"
+    )
+    prediction_frame["target_date"] = _finalized_dates(
+        prediction_frame["target_date"], "predictions.csv target_date"
+    )
+    if decision_rows.empty:
+        raise DataError("decision_predictions.csv must contain final-test rows only")
+    decision_rows["target_date"] = _finalized_dates(
+        decision_rows["target_date"], "decision_predictions.csv target_date"
+    )
+    if prediction_frame["split"].isna().any() or set(prediction_frame["split"]) != {"test"}:
         raise DataError("predictions.csv must contain final-test rows only")
-    expected_predictions = {
-        "issue_date",
-        "target_date",
-        "actual_radiation_kwh_m2_day",
-        "persistence_prediction_kwh_m2_day",
-        "seasonal_mean_prediction_kwh_m2_day",
-        "ridge_prediction_kwh_m2_day",
-    }
-    if not expected_predictions <= set(prediction_frame.columns):
-        raise DataError("predictions.csv is missing required dated radiation columns")
-    if prediction_frame.empty or prediction_frame["target_date"].isna().any():
+    if prediction_frame["selected_model"].isna().any() or set(
+        prediction_frame["selected_model"]
+    ) != {selected_model}:
+        raise DataError("predictions.csv selected model differs from the run manifest")
+    if prediction_frame["target_date"].isna().any():
         raise DataError("predictions.csv must contain valid final-test target dates")
     if (
         prediction_frame["target_date"].duplicated().any()
@@ -1014,95 +2056,202 @@ def load_finalized_run(run_dir: Path) -> dict[str, Any]:
         prediction_frame["target_date"] == prediction_frame["issue_date"] + pd.Timedelta(days=1)
     ).all():
         raise DataError("predictions.csv issue and target dates must differ by one calendar day")
-    target_period = manifest.get("target_periods", {}).get("test", [])
-    if (
-        len(target_period) != 2
-        or [
-            prediction_frame["target_date"].min().date().isoformat(),
-            prediction_frame["target_date"].max().date().isoformat(),
-        ]
-        != target_period
-    ):
+    if [
+        prediction_frame["target_date"].min().date().isoformat(),
+        prediction_frame["target_date"].max().date().isoformat(),
+    ] != normalized_period:
         raise DataError("predictions.csv target range differs from the run manifest")
-    row_counts = manifest.get("row_counts", {})
-    if row_counts.get("test") != len(prediction_frame):
+    if row_counts["test"] != len(prediction_frame):
         raise DataError("predictions.csv row count differs from the run manifest")
-    prediction_values = prediction_frame[
-        sorted(expected_predictions - {"issue_date", "target_date"})
-    ].to_numpy(dtype=float)
-    if not np.isfinite(prediction_values).all():
-        raise DataError("predictions.csv contains non-finite radiation values")
-    if set(forecast_payload.get("metrics", {})) != {
-        "persistence",
-        "seasonal_mean",
-        "ridge",
-    } or any(
-        metrics.get("sample_count") != len(prediction_frame)
-        for metrics in forecast_payload["metrics"].values()
-    ):
-        raise DataError("forecast metrics do not cover all approaches and common test dates")
-    if "artifact_schema_version" not in decision_frame or set(
-        decision_frame["artifact_schema_version"]
-    ) != {FINAL_RUN_SCHEMA_VERSION}:
-        raise DataError("decision_metrics.csv schema version is unsupported")
-    if set(decision_frame.get("partition", [])) != {"test"}:
+
+    split_names = {"train", "validation", "test"}
+    test_excluded_dates: list[pd.Timestamp] = []
+    if not legacy_historical_run:
+        excluded_counts = manifest["excluded_rows_by_split"]
+        excluded_dates = manifest["excluded_dates_by_split"]
+        if (
+            not isinstance(excluded_counts, dict)
+            or set(excluded_counts) != split_names
+            or not isinstance(excluded_dates, dict)
+            or set(excluded_dates) != split_names
+        ):
+            raise DataError("run manifest excluded-row accounting is incomplete")
+        for split_name in sorted(split_names):
+            records = excluded_dates[split_name]
+            count = excluded_counts[split_name]
+            if (
+                not isinstance(records, list)
+                or type(count) is not int
+                or count < 0
+                or count != len(records)
+            ):
+                raise DataError(
+                    f"run manifest {split_name} exclusion count does not match its records"
+                )
+            seen_dates: set[pd.Timestamp] = set()
+            for record in records:
+                if not isinstance(record, dict) or set(record) != {
+                    "issue_date",
+                    "target_date",
+                    "missing_or_nonfinite_fields",
+                }:
+                    raise DataError(
+                        f"run manifest {split_name} exclusion record has an invalid schema"
+                    )
+                issue_date, target_date = (
+                    _finalized_dates(pd.Series([record[name]]), f"{split_name} exclusion {name}")[0]
+                    for name in ("issue_date", "target_date")
+                )
+                missing_fields = record["missing_or_nonfinite_fields"]
+                if (
+                    target_date in seen_dates
+                    or target_date != issue_date + pd.Timedelta(days=1)
+                    or not isinstance(missing_fields, list)
+                    or not missing_fields
+                    or any(not isinstance(field, str) or not field for field in missing_fields)
+                ):
+                    raise DataError(f"run manifest {split_name} exclusion record is invalid")
+                seen_dates.add(target_date)
+                if split_name == "test":
+                    test_excluded_dates.append(target_date)
+    predicted_dates = pd.DatetimeIndex(prediction_frame["target_date"])
+    if set(test_excluded_dates) & set(predicted_dates):
+        raise DataError("test exclusion dates overlap eligible forecast targets")
+    eligible_calendar = pd.date_range(predicted_dates.min(), predicted_dates.max(), freq="D")
+    expected_eligible_dates = eligible_calendar.difference(
+        [
+            value
+            for value in test_excluded_dates
+            if predicted_dates.min() <= value <= predicted_dates.max()
+        ]
+    )
+    if not expected_eligible_dates.equals(predicted_dates):
+        raise DataError("predictions.csv test target calendar does not reconcile to exclusions")
+
+    prediction_numeric = FINAL_PREDICTION_COLUMNS - {
+        "artifact_schema_version",
+        "issue_date",
+        "target_date",
+        "split",
+        "selected_model",
+    }
+    _require_finalized_numeric_columns(
+        prediction_frame,
+        prediction_numeric,
+        "predictions.csv",
+        nonnegative=prediction_numeric,
+    )
+    for column in prediction_numeric:
+        prediction_frame[column] = pd.to_numeric(prediction_frame[column], errors="raise")
+
+    _validate_finalized_forecast_metrics(forecast_payload, prediction_frame, selected_model)
+
+    if decision_frame["partition"].isna().any() or set(decision_frame["partition"]) != {"test"}:
         raise DataError("decision_metrics.csv must contain final-test summaries only")
-    if len(decision_frame) != 28 * 4 or set(decision_frame.get("approach", [])) != {
-        "persistence",
-        "seasonal_mean",
-        "ridge",
-        "always_prepare_backup",
+    if decision_rows["split"].isna().any() or set(decision_rows["split"]) != {"test"}:
+        raise DataError("decision_predictions.csv must contain final-test rows only")
+    for frame, columns, label in (
+        (
+            decision_frame,
+            FINAL_DECISION_METRIC_COLUMNS
+            - {"artifact_schema_version", "partition", "scenario_id", "approach", "selected_model"},
+            "decision_metrics.csv",
+        ),
+        (
+            decision_rows,
+            FINAL_DECISION_PREDICTION_COLUMNS
+            - {"artifact_schema_version", "split", "scenario_id", "approach", "target_date"},
+            "decision_predictions.csv",
+        ),
+    ):
+        nonnegative = columns - {
+            "paired_mean_simulated_shortfall_difference_vs_persistence_kwh_day",
+            "paired_mean_simulated_shortfall_difference_vs_seasonal_mean_kwh_day",
+            "paired_mean_excess_difference_vs_persistence_kwh_day",
+            "paired_mean_excess_difference_vs_seasonal_mean_kwh_day",
+        }
+        missing_by_approach = (
+            {"predicted_radiation_kwh_m2_day", "predicted_generation_proxy_kwh_day"}
+            if label == "decision_predictions.csv"
+            else set()
+        )
+        _require_finalized_numeric_columns(
+            frame,
+            columns,
+            label,
+            nonnegative=nonnegative,
+            allow_nan_by_approach=missing_by_approach,
+        )
+        for column in columns:
+            frame[column] = pd.to_numeric(frame[column], errors="raise")
+
+    for frame, label in (
+        (decision_frame, "decision_metrics.csv"),
+        (decision_rows, "decision_predictions.csv"),
+    ):
+        for column in ("scenario_id", "approach"):
+            if frame[column].isna().any() or frame[column].astype(str).str.strip().eq("").any():
+                raise DataError(f"{label} contains missing scenario/approach keys")
+            frame[column] = frame[column].astype(str)
+    if decision_frame["selected_model"].isna().any() or set(decision_frame["selected_model"]) != {
+        selected_model
     }:
+        raise DataError("decision metrics selected model differs from the run manifest")
+    if set(decision_frame["approach"]) != FINAL_DECISION_APPROACHES or len(
+        decision_frame
+    ) != 28 * len(FINAL_DECISION_APPROACHES):
         raise DataError("decision metrics must compare four approaches on all 28 fixed scenarios")
-    if decision_frame.duplicated(["scenario_id", "approach"]).any() or not all(
-        set(group["approach"]) == {"persistence", "seasonal_mean", "ridge", "always_prepare_backup"}
-        for _, group in decision_frame.groupby("scenario_id")
+    if (
+        decision_frame.duplicated(["scenario_id", "approach"]).any()
+        or len(decision_frame["scenario_id"].unique()) != 28
+        or set(decision_rows["approach"]) != FINAL_DECISION_APPROACHES
     ):
         raise DataError("decision metrics contain mismatched approach/scenario rows")
+    if decision_rows.duplicated(["scenario_id", "approach", "target_date"]).any():
+        raise DataError("decision predictions contain duplicate approach/date rows")
+    if len(decision_rows) != len(prediction_frame) * 28 * len(FINAL_DECISION_APPROACHES):
+        raise DataError("decision predictions do not cover every test date and scenario")
+    if set(decision_frame["scenario_id"]) != set(decision_rows["scenario_id"]):
+        raise DataError("decision summary and daily scenario sets do not match")
+
+    metric_count_columns = {
+        "sample_count",
+        "simulated_shortfall_day_count",
+        "capacity_limited_shortfall_day_count",
+    }
+    for column in metric_count_columns:
+        values = decision_frame[column].to_numpy(dtype=float)
+        if not np.equal(values, np.floor(values)).all():
+            raise DataError(f"decision metrics field {column} must contain integer counts")
+    if set(decision_frame["sample_count"].astype(int)) != {len(prediction_frame)}:
+        raise DataError("decision metrics do not cover all common test dates")
+    for column in ("simulated_shortfall_day_count", "capacity_limited_shortfall_day_count"):
+        values = decision_frame[column].to_numpy(dtype=int)
+        if (values < 0).any() or (values > len(prediction_frame)).any():
+            raise DataError(f"decision metrics field {column} is outside the test sample")
+    if (decision_frame["simulated_shortfall_day_share"] > 1).any() or (
+        decision_frame["simulated_shortfall_day_share"] < 0
+    ).any():
+        raise DataError("decision shortfall shares must be between zero and one")
+
+    expected_target_dates = pd.DatetimeIndex(prediction_frame["target_date"])
     setting_columns = ["demand_kwh", "capacity_kwh", "buffer_kwh"]
-    if not set(setting_columns) <= set(decision_frame.columns):
-        raise DataError("decision metrics do not record their hypothetical scenario settings")
-    for _, group in decision_frame.groupby("scenario_id"):
+    shared_columns = [*setting_columns, "actual_radiation_kwh_m2_day"]
+    for _, group in decision_frame.groupby("scenario_id", sort=False):
         for column in setting_columns:
             if group[column].nunique(dropna=False) != 1:
                 raise DataError("decision metrics compare approaches under mismatched settings")
-    if "artifact_schema_version" not in decision_rows or set(
-        decision_rows["artifact_schema_version"]
-    ) != {FINAL_RUN_SCHEMA_VERSION}:
-        raise DataError("decision_predictions.csv schema version is unsupported")
-    if set(decision_rows.get("split", [])) != {"test"}:
-        raise DataError("decision_predictions.csv must contain final-test rows only")
-    if decision_rows.duplicated(["scenario_id", "approach", "target_date"]).any():
-        raise DataError("decision predictions contain duplicate approach/date rows")
-    if len(decision_rows) != len(prediction_frame) * 28 * 4:
-        raise DataError("decision predictions do not cover every test date and scenario")
-    if set(decision_rows.get("approach", [])) != {
-        "persistence",
-        "seasonal_mean",
-        "ridge",
-        "always_prepare_backup",
-    }:
-        raise DataError("decision predictions are missing one or more approaches")
-    shared_columns = [*setting_columns, "actual_radiation_kwh_m2_day"]
-    expected_target_dates = pd.DatetimeIndex(prediction_frame["target_date"])
-    for _, group in decision_rows.groupby("scenario_id"):
-        if len(group) != len(prediction_frame) * 4 or not pd.DatetimeIndex(
-            group["target_date"].drop_duplicates()
-        ).equals(expected_target_dates):
+    for _, group in decision_rows.groupby("scenario_id", sort=False):
+        unique_dates = pd.DatetimeIndex(group["target_date"].drop_duplicates().sort_values())
+        if len(group) != len(prediction_frame) * len(
+            FINAL_DECISION_APPROACHES
+        ) or not unique_dates.equals(expected_target_dates):
             raise DataError("decision scenarios do not share the forecast target dates")
-    for _, group in decision_rows.groupby(["scenario_id", "target_date"]):
-        if set(group["approach"]) != {
-            "persistence",
-            "seasonal_mean",
-            "ridge",
-            "always_prepare_backup",
-        } or any(group[column].nunique(dropna=False) != 1 for column in shared_columns):
+    for _, group in decision_rows.groupby(["scenario_id", "target_date"], sort=False):
+        if set(group["approach"]) != FINAL_DECISION_APPROACHES or any(
+            group[column].nunique(dropna=False) != 1 for column in shared_columns
+        ):
             raise DataError("decision predictions use mismatched dates or scenario settings")
-    shared_actuals = decision_rows.groupby("target_date")["actual_radiation_kwh_m2_day"].nunique(
-        dropna=False
-    )
-    if (shared_actuals != 1).any():
-        raise DataError("decision approaches do not share one observed target per date")
     actual_by_date = decision_rows.drop_duplicates("target_date").sort_values("target_date")
     if not np.allclose(
         actual_by_date["actual_radiation_kwh_m2_day"].to_numpy(dtype=float),
@@ -1111,13 +2260,93 @@ def load_finalized_run(run_dir: Path) -> dict[str, Any]:
         atol=1e-12,
     ):
         raise DataError("decision observations differ from the common forecast test series")
+
+    forecasts_by_approach = {
+        "persistence": "persistence_prediction_kwh_m2_day",
+        "seasonal_mean": "seasonal_mean_prediction_kwh_m2_day",
+        "ridge": "ridge_prediction_kwh_m2_day",
+    }
+    forecast_values = prediction_frame.set_index("target_date")
+    for approach, column in forecasts_by_approach.items():
+        approach_rows = decision_rows.loc[decision_rows["approach"] == approach]
+        expected = approach_rows["target_date"].map(forecast_values[column]).to_numpy(dtype=float)
+        if not np.allclose(
+            approach_rows["predicted_radiation_kwh_m2_day"].to_numpy(dtype=float),
+            np.maximum(expected, 0.0),
+            rtol=0,
+            atol=1e-12,
+        ):
+            raise DataError("decision predictions differ from the common forecast approaches")
+
+    summary = decision_frame.set_index(["scenario_id", "approach"])
+    for key, group in decision_rows.groupby(["scenario_id", "approach"], sort=False):
+        row = summary.loc[key]
+        shortfall = group["simulated_shortfall_kwh"].to_numpy(dtype=float)
+        excess = group["excess_prepared_reserve_kwh"].to_numpy(dtype=float)
+        capacity_limited = group["capacity_limited_shortfall_kwh"].to_numpy(dtype=float)
+        additional = group["additional_shortfall_above_capacity_floor_kwh"].to_numpy(dtype=float)
+        expected_summary = {
+            "sample_count": len(group),
+            "simulated_shortfall_day_count": int(np.count_nonzero(shortfall > 0)),
+            "simulated_shortfall_day_share": float(np.mean(shortfall > 0)),
+            "total_simulated_shortfall_kwh": float(shortfall.sum()),
+            "mean_simulated_shortfall_kwh_day": float(shortfall.mean()),
+            "total_excess_prepared_reserve_kwh": float(excess.sum()),
+            "mean_excess_prepared_reserve_kwh_day": float(excess.mean()),
+            "capacity_limited_shortfall_day_count": int(np.count_nonzero(capacity_limited > 0)),
+            "total_capacity_limited_shortfall_kwh": float(capacity_limited.sum()),
+            "mean_capacity_limited_shortfall_kwh_day": float(capacity_limited.mean()),
+            "total_additional_shortfall_above_capacity_floor_kwh": float(additional.sum()),
+            "mean_additional_shortfall_above_capacity_floor_kwh_day": float(additional.mean()),
+        }
+        for column, expected in expected_summary.items():
+            actual_value = row[column]
+            if isinstance(expected, int):
+                matches = int(actual_value) == expected
+            else:
+                matches = math.isclose(float(actual_value), expected, rel_tol=1e-10, abs_tol=1e-10)
+            if not matches:
+                raise DataError("decision summary metrics do not match daily decision predictions")
+
+    for _, group in decision_frame.groupby("scenario_id", sort=False):
+        means = {
+            approach: {
+                "shortfall": float(row["mean_simulated_shortfall_kwh_day"]),
+                "excess": float(row["mean_excess_prepared_reserve_kwh_day"]),
+            }
+            for approach, row in group.set_index("approach").iterrows()
+        }
+        for _, row in group.iterrows():
+            approach = row["approach"]
+            for baseline in ("persistence", "seasonal_mean"):
+                expected_shortfall = means[approach]["shortfall"] - means[baseline]["shortfall"]
+                expected_excess = means[approach]["excess"] - means[baseline]["excess"]
+                for column, expected in (
+                    (
+                        f"paired_mean_simulated_shortfall_difference_vs_{baseline}_kwh_day",
+                        expected_shortfall,
+                    ),
+                    (
+                        f"paired_mean_excess_difference_vs_{baseline}_kwh_day",
+                        expected_excess,
+                    ),
+                ):
+                    if not math.isclose(float(row[column]), expected, rel_tol=1e-10, abs_tol=1e-10):
+                        raise DataError(
+                            "decision paired differences do not match scenario summaries"
+                        )
+
+    try:
+        assumptions = artifact_bytes["assumptions.md"].decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise DataError(f"finalized assumptions are unreadable: {error}") from error
     return {
         "run_manifest": manifest,
         "forecast_metrics": forecast_payload,
         "predictions": prediction_frame,
         "decision_metrics": decision_frame,
         "decision_predictions": decision_rows,
-        "assumptions": (run_dir / "assumptions.md").read_text(encoding="utf-8"),
+        "assumptions": assumptions,
     }
 
 

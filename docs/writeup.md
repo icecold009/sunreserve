@@ -175,8 +175,12 @@ The public source repository is [icecold009/sunreserve](https://github.com/iceco
 The reviewed visual README package, including its assets, submission write-up, and demo
 script, was pushed to `feature/veritas-sunreserve` in package commit
 `33c650bca3cbc82e365914792603773e7f02ce42`. This package SHA does not identify the later
-plan/write-up checkpoint edits. No pull request, hosted app, uploaded video, or hackathon
-submission exists. Local reproduction instructions are in the [README](../README.md).
+plan/write-up checkpoint edits. PR #1 was later merged to `main` at commit
+`2b746109f090c6f520e025c1ceb5a7083b36e8d3`. The hackathon submission receipt is confirmed,
+but the exact submitted snapshot remains unresolved. At the 2026-11-19 pre-integration
+checkpoint, the post-submission candidate branch was uncommitted and unpushed, with no candidate
+pull request. The release-readiness evidence at that checkpoint did not record a hosted app or
+uploaded video. Local reproduction instructions are in the [README](../README.md).
 
 ## Sources and credits
 

@@ -4,11 +4,11 @@
 
 SunReserve uses a trained solar-radiation model to explore tomorrow’s backup-energy needs.
 
-![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) ![136 locally verified tests](https://img.shields.io/badge/Tests-136%20locally%20verified-f2c14e)
+![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) ![287 passed, 4 skipped](https://img.shields.io/badge/Tests-287%20passed%2C%204%20skipped-f2c14e)
 
 <p align="center"><img src="docs/assets/prediction-demo.png" alt="SunReserve fresh Ridge forecast and planned reserve beside a seven-day input window and baseline comparison" width="900"></p>
 
-The screenshot is a genuine app run using its seven-day example and hypothetical 25 kWh daily demand. For 2025-01-01 it shows a fresh 5.39 kWh/m²/day Ridge estimate and 7.75 kWh planned reserve, alongside both baselines. The NASA POWER input dates are not verified as available on issue day; reserve is simulated.
+This screenshot is a prior captured app state using its seven-day example and hypothetical 25 kWh daily demand. For 2025-01-01 it shows a fresh 5.39 kWh/m²/day Ridge estimate and 7.75 kWh planned reserve, alongside both baselines. The NASA POWER input dates are not verified as available on issue day; reserve is simulated. Current visual/mobile acceptance is not claimed by this image.
 
 ## The problem
 
@@ -57,15 +57,17 @@ The hypothetical equal-weight score adds mean shortfall and excess reserve at 1:
 
 ## Quick start
 
-Python 3.11–3.13 is supported. From a fresh checkout, install the project and its verification tools, then launch the app. The tracked model and data artifacts let the demonstration start without downloading data or fitting a model.
+Python 3.11–3.13 is supported. From a fresh checkout, install the project and its verification tools, then launch the app. The tracked model and data artifacts let the demonstration start without downloading data or fitting a model. The preview command runs headlessly, disables usage statistics, and binds only to the local machine.
 
 ```powershell
 python -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-& .\.venv\Scripts\python.exe -m streamlit run app.py
+& .\.venv\Scripts\python.exe -m streamlit run app.py --server.headless true --server.address 127.0.0.1 --browser.gatherUsageStats false
 ```
 
 The default view is **Next-day AI prediction**. Confirm or replace the seven daily rows and choose **Run fresh Ridge prediction**. The separate replay view reads its saved historical artifacts. Neither mode contacts NASA POWER at startup. To refresh source data explicitly, follow the fetch, prepare, and validation procedure in the [method and results write-up](docs/writeup.md).
+
+The [tested environment snapshot](docs/environment-snapshot.md) records one exact Windows/Python resolution separately from the supported compatibility ranges. [Dependency security guidance](docs/dependency-security.md) explains the vulnerability scan and review process.
 
 ## Limitations
 

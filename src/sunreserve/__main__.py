@@ -15,7 +15,7 @@ from sunreserve.evaluate import (
     _sha256_file,
     finalize_run,
     render_final_report,
-    run_validation,
+    run_experiment_validation,
 )
 from sunreserve.inference import (
     ModelArtifactError,
@@ -23,6 +23,12 @@ from sunreserve.inference import (
     load_observation_file,
     load_project_model,
     predict_next_day,
+)
+from sunreserve.observations import OBSERVATION_POLICY_NOTE
+from sunreserve.prediction_export import (
+    build_prediction_export,
+    entrypoint_source_identity,
+    generated_at_utc_now,
 )
 
 
@@ -39,9 +45,12 @@ def _parser() -> argparse.ArgumentParser:
     fetch = commands.add_parser("fetch", help="explicitly download or reuse NASA POWER data")
     fetch.add_argument("--refresh", action="store_true", help="replace the cache after validation")
     commands.add_parser("prepare", help="prepare the cached raw response without network access")
-    commands.add_parser(
+    validate = commands.add_parser(
         "validate",
         help="fit on training rows and select on validation rows using local cached data only",
+    )
+    validate.add_argument(
+        "--run-id", required=True, help="safe immutable ID under artifacts/experiments"
     )
     finalize = commands.add_parser(
         "finalize",
@@ -54,6 +63,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     finalize.add_argument(
         "--run-id", help="optional safe run identifier; an existing run is never overwritten"
+    )
+    finalize.add_argument(
+        "--experiment-id", help="finalize one validation experiment instead of the legacy baseline"
     )
     report = commands.add_parser(
         "report", help="write a report from one already finalized run only"
@@ -101,42 +113,41 @@ def main(argv: list[str] | None = None) -> int:
                 efficiency=config.conversion_efficiency,
                 derating=config.derating_factor,
             )
-            labels = ("ridge", "persistence", "seasonal_mean")
-            summary = {
-                "issue_date": result.issue_date.isoformat(),
-                "target_date": result.target_date.isoformat(),
-                "target": "NASA POWER daily solar radiation",
-                "radiation_units": "kWh/m^2/day",
-                "model_id": result.model_id,
-                "model_sha256": model.artifact_sha256,
-                "training_target_period": [
-                    model.training_start.isoformat(),
-                    model.training_end.isoformat(),
-                ],
-                "prediction_and_reserve_plan": [
-                    {
-                        "approach": label,
-                        "predicted_radiation_kwh_m2_day": float(value),
-                        "predicted_generation_proxy_kwh_day": float(
-                            plans.loc[index, "predicted_generation_proxy_kwh_day"]
-                        ),
-                        "prepared_reserve_kwh": float(plans.loc[index, "prepared_reserve_kwh"]),
-                    }
-                    for index, (label, value) in enumerate(zip(labels, forecasts, strict=True))
-                ],
-                "assumptions": {
+            summary = build_prediction_export(
+                generated_at_utc=generated_at_utc_now(),
+                issue_date=result.issue_date,
+                target_date=result.target_date,
+                source_kind="cli_observation_file",
+                observations=observations,
+                assumptions={
                     "daily_demand_kwh": config.daily_demand_kwh,
                     "reserve_capacity_kwh": config.reserve_cap_kwh,
-                    "buffer_kwh": config.reserve_buffer_kwh,
+                    "reserve_buffer_kwh": config.reserve_buffer_kwh,
                     "panel_area_m2": config.panel_area_m2,
                     "conversion_efficiency": config.conversion_efficiency,
                     "derating_factor": config.derating_factor,
-                    "availability_note": (
-                        "Historical observation dates only; release timestamps and operational "
-                        "data availability were not verified. Not an operational controller."
-                    ),
                 },
-            }
+                model_identity={
+                    "model_id": model.model_id,
+                    "artifact_sha256": model.artifact_sha256,
+                    "training_rows": model.training_rows,
+                    "training_start": model.training_start,
+                    "training_end": model.training_end,
+                },
+                package_version=result.package_version,
+                package_source=result.package_source_identity,
+                entrypoint_identity=entrypoint_source_identity("cli", Path(__file__).read_bytes()),
+                forecasts={
+                    "ridge_radiation_kwh_m2_day": result.radiation_kwh_m2_day,
+                    "persistence_radiation_kwh_m2_day": result.persistence_kwh_m2_day,
+                    "seasonal_mean_radiation_kwh_m2_day": result.seasonal_mean_kwh_m2_day,
+                },
+                reserve_outputs=plans,
+                features=result.features,
+                warnings=result.warnings,
+                input_validation_policy=OBSERVATION_POLICY_NOTE,
+                result_status="not_applicable",
+            )
             print(json.dumps(summary, indent=2, allow_nan=False))
             return 0
         if args.command == "fetch":
@@ -154,7 +165,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Quality report: {paths.quality_path}")
             return 0
         if args.command == "validate":
-            selection = run_validation(paths, config)
+            selection, model_path = run_experiment_validation(paths, config, args.run_id)
+            experiment_dir = model_path.parents[1]
             print("Validation only; the final test period was not loaded or evaluated.")
             print(f"Selected approach by validation MAE: {selection.selected_model}")
             print(f"Eligible rows: {selection.eligible_rows}")
@@ -164,10 +176,12 @@ def main(argv: list[str] | None = None) -> int:
                     f"bias={values['bias_prediction_minus_actual']:.4f} "
                     f"(n={values['sample_count']})"
                 )
-            print(f"Validation artifacts: {paths.validation_dir}")
-            print(f"Training-only inference model: {paths.model_path}")
+            print(f"Validation artifacts: {experiment_dir / 'validation'}")
+            print(f"Training-only inference model: {model_path}")
             selection_manifest = json.loads(
-                (paths.validation_dir / "selection_manifest.json").read_text(encoding="utf-8")
+                (experiment_dir / "validation" / "selection_manifest.json").read_text(
+                    encoding="utf-8"
+                )
             )
             decision_selection = selection_manifest["decision_selection"]
             print("2022 validation decision scores (mean shortfall + mean excess, kWh/day):")
@@ -176,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Selected by development reserve score: {decision_selection['selected_model']}")
             print(
                 "Frozen selection manifest SHA-256: "
-                f"{_sha256_file(paths.validation_dir / 'selection_manifest.json')}"
+                f"{_sha256_file(experiment_dir / 'validation' / 'selection_manifest.json')}"
             )
             return 0
         if args.command == "finalize":
@@ -185,6 +199,7 @@ def main(argv: list[str] | None = None) -> int:
                 manifest_sha256=args.manifest_sha256,
                 run_id=args.run_id,
                 expected_config=config if args.config else None,
+                experiment_id=args.experiment_id,
             )
             print("Final test inspected after frozen manifest and input checks passed.")
             print(f"Frozen selected approach: {finalized.selected_model}")

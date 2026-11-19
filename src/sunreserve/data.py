@@ -45,9 +45,8 @@ class ProjectPaths:
 
     def __init__(self, root: Path | None = None) -> None:
         self.root = (root or default_project_root()).resolve()
-        stem = f"power_daily_{self.root.name}"
-        self.raw_path = self.root / "data" / "raw" / f"{stem}.json"
-        self.sidecar_path = self.root / "data" / "raw" / f"{stem}.meta.json"
+        self.raw_path = self.root / "data" / "raw" / "power_daily_sunreserve.json"
+        self.sidecar_path = self.root / "data" / "raw" / "power_daily_sunreserve.meta.json"
         self.daily_path = self.root / "data" / "processed" / "daily.csv"
         self.quality_path = self.root / "data" / "processed" / "quality_report.json"
         self.config_path = self.root / "artifacts" / "experiment_config.json"

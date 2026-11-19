@@ -66,6 +66,12 @@ Normal imports, preparation, validation, and app startup do not make network req
 interpolating, plus `data/processed/quality_report.json` with per-variable and per-year
 missing counts, exact missing dates, and complete-case exclusions.
 
+Validation manifests bind the full prepared CSV bytes and the exact persisted CSV prefix
+through `validation_end`. New manifests mark prefix digests as `prepared-csv-prefix-v1` and
+hash the header plus exactly the configured development-row count, independent of pandas CSV
+parsing or formatting. Markerless legacy manifests remain usable only when the full prepared
+CSV bytes match the checksums recorded by both the manifest and quality report.
+
 ## Supervised row timing and coverage
 
 Each issue date `t` targets the radiation observation on the next calendar date
@@ -87,8 +93,22 @@ separately below. The cached validation manifest contains the full metrics and p
 
 ## Retrieval status
 
-The source and terms were checked against the documentation linked above. The configured
-request was retrieved on 2026-11-14. The exact raw response is cached locally with SHA-256
+The cached response header identifies NASA POWER Daily API version `v2.10.3`; it was
+retrieved on 2026-11-14. This identifies the saved response and must not be conflated with
+the current documentation status. NASA POWER's current documentation describes POWER Data
+v10 and was checked separately on 2026-11-19; the API migration notice says the endpoints
+continue to work as expected. The cached response was not regenerated as part of that
+documentation check or this documentation update.
+
+When citing the cached data, identify the NASA POWER Project, response API version and
+retrieval date, requested date interval, reference coordinates, Renewable Energy community,
+UTC time standard, parameter identifiers, and units. Link the [daily API documentation](https://power.larc.nasa.gov/docs/services/api/temporal/daily/)
+and [POWER referencing guide](https://power.larc.nasa.gov/docs/referencing/); include the
+raw-response SHA-256 when referring to these exact local bytes. Cite the [current POWER
+Data v10 documentation](https://power.larc.nasa.gov/docs/) separately from the version and
+provenance of the cached response. No notification was sent in this documentation batch.
+
+The exact raw response is cached locally with SHA-256
 `925dde6e86766df7f0f65c91d77947e7306068892fd02ddec0dc5b891d28c908`. Preparation found
 3,288 consecutive calendar days from 2016-01-01 through 2024-12-31, with no absent dates or
 fill values in the three requested variables. This is source coverage, not a claim of
