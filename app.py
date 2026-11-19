@@ -1515,12 +1515,15 @@ def _show_prediction(project_root: Path, experiment_id: str | None = None) -> No
         "electricity and prepared reserve are hypothetical simulated quantities."
     )
     st.caption(OBSERVATION_POLICY_NOTE)
+    config = ExperimentConfig()
     try:
         if experiment_id is None:
             model, decision_selection = load_project_model(project_root)
         else:
             model, decision_selection = load_project_model(
-                project_root, experiment_id=experiment_id
+                project_root,
+                experiment_id=experiment_id,
+                expected_context=config,
             )
     except ModelArtifactError as error:
         st.error(f"Trained model unavailable: {error}")
@@ -1528,7 +1531,6 @@ def _show_prediction(project_root: Path, experiment_id: str | None = None) -> No
         st.caption("Prediction mode requires a model from the selected validation artifacts.")
         return
 
-    config = ExperimentConfig()
     with st.sidebar:
         st.header("Hypothetical reserve assumptions")
         demand = st.number_input(

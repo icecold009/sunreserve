@@ -268,10 +268,14 @@ def load_model_bundle(path: Path, *, expected_sha256: str | None = None) -> Ridg
 
 
 def load_project_model(
-    root: Path, *, experiment_id: str | None = None
+    root: Path,
+    *,
+    experiment_id: str | None = None,
+    expected_context: ExperimentConfig | None = None,
 ) -> tuple[RidgeModelBundle, dict[str, Any]]:
     """Load a shipped or selected experiment model only when its manifest checksums match."""
     project_root = root.resolve()
+    selection_manifest_bytes: bytes | None = None
     if experiment_id is None:
         manifest_path = project_root / "artifacts" / "validation" / "selection_manifest.json"
         model_path = project_root / "models" / "ridge_model.json"
@@ -327,30 +331,68 @@ def load_project_model(
         ):
             raise ModelArtifactError("validation experiment manifest is incompatible")
         try:
-            selection_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-            model_digest = hashlib.sha256(model_path.read_bytes()).hexdigest()
+            selection_manifest_bytes = manifest_path.read_bytes()
+            model_bytes = model_path.read_bytes()
         except OSError as error:
             raise ModelArtifactError(
                 f"validation experiment artifacts are unreadable: {error}"
             ) from error
         if (
-            experiment_manifest.get("selection_manifest_sha256") != selection_digest
-            or experiment_manifest.get("model_sha256") != model_digest
+            experiment_manifest.get("selection_manifest_sha256")
+            != hashlib.sha256(selection_manifest_bytes).hexdigest()
+            or experiment_manifest.get("model_sha256") != hashlib.sha256(model_bytes).hexdigest()
         ):
             raise ModelArtifactError("validation experiment artifacts do not match their manifest")
     try:
+        if selection_manifest_bytes is None:
+            selection_manifest_bytes = manifest_path.read_bytes()
         manifest_payload = json.loads(
-            manifest_path.read_text(encoding="utf-8"),
-            object_pairs_hook=_duplicate_safe_object,
+            selection_manifest_bytes, object_pairs_hook=_duplicate_safe_object
         )
     except OSError as error:
         raise ModelArtifactError(
             f"validation selection manifest is missing or unreadable: {manifest_path}"
         ) from error
-    except (json.JSONDecodeError, ModelArtifactError) as error:
+    except (UnicodeDecodeError, json.JSONDecodeError, ModelArtifactError) as error:
         raise ModelArtifactError(f"validation selection manifest is corrupt: {error}") from error
     if not isinstance(manifest_payload, dict):
         raise ModelArtifactError("validation selection manifest must contain an object")
+    if experiment_id is not None and expected_context is not None:
+        configuration_payload = manifest_payload.get("configuration")
+        if not isinstance(configuration_payload, dict):
+            raise ModelArtifactError(
+                "selected validation manifest does not contain an experiment configuration"
+            )
+        if set(configuration_payload) != set(ExperimentConfig().to_dict()):
+            raise ModelArtifactError(
+                "selected validation manifest experiment configuration is incomplete or unsupported"
+            )
+        try:
+            experiment_context = ExperimentConfig.from_dict(configuration_payload)
+        except (KeyError, TypeError, ValueError) as error:
+            raise ModelArtifactError(
+                f"selected validation manifest has an invalid experiment configuration: {error}"
+            ) from error
+        mismatches = []
+        if (
+            experiment_context.latitude != expected_context.latitude
+            or experiment_context.longitude != expected_context.longitude
+        ):
+            mismatches.append(
+                "latitude/longitude "
+                f"({experiment_context.latitude}, {experiment_context.longitude}) versus "
+                f"expected ({expected_context.latitude}, {expected_context.longitude})"
+            )
+        if experiment_context.time_standard != expected_context.time_standard:
+            mismatches.append(
+                f"time_standard {experiment_context.time_standard!r} versus expected "
+                f"{expected_context.time_standard!r}"
+            )
+        if mismatches:
+            raise ModelArtifactError(
+                "selected experiment context does not match the prediction page: "
+                + "; ".join(mismatches)
+            )
     metadata = manifest_payload.get("model_bundle")
     if not isinstance(metadata, dict):
         raise ModelArtifactError("validation manifest does not identify a trained model bundle")

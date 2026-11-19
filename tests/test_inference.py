@@ -396,16 +396,19 @@ def test_project_model_must_match_validation_manifest_hash(tmp_path) -> None:
         load_project_model(tmp_path)
 
 
-def test_project_model_can_load_selected_isolated_experiment(tmp_path) -> None:
+def _write_project_experiment(
+    root: Path, experiment_context: ExperimentConfig
+) -> tuple[str, Path, str]:
     experiment_id = "trial-1"
-    experiment_dir = tmp_path / "artifacts" / "experiments" / experiment_id
+    experiment_dir = root / "artifacts" / "experiments" / experiment_id
     validation_dir = experiment_dir / "validation"
     model_path = experiment_dir / "models" / "ridge_model.json"
     validation_dir.mkdir(parents=True)
     model_path.parent.mkdir(parents=True)
-    bundle, model_digest = write_model_bundle(train_rows(), config(), model_path)
+    bundle, model_digest = write_model_bundle(train_rows(), experiment_context, model_path)
     selection = {
         "status": "validation_only; final test not loaded",
+        "configuration": experiment_context.to_dict(),
         "model_bundle": {
             "path": f"artifacts/experiments/{experiment_id}/models/ridge_model.json",
             "sha256": model_digest,
@@ -436,16 +439,46 @@ def test_project_model_can_load_selected_isolated_experiment(tmp_path) -> None:
         ),
         encoding="utf-8",
     )
+    return experiment_id, selection_path, model_digest
 
-    loaded, decision_selection = load_project_model(tmp_path, experiment_id=experiment_id)
+
+def test_project_model_can_load_selected_isolated_experiment(tmp_path) -> None:
+    experiment_id, selection_path, model_digest = _write_project_experiment(tmp_path, config())
+
+    loaded, decision_selection = load_project_model(
+        tmp_path, experiment_id=experiment_id, expected_context=config()
+    )
 
     assert loaded.artifact_sha256 == model_digest
     assert decision_selection["selected_model"] == "ridge"
     assert not (tmp_path / "models" / "ridge_model.json").exists()
 
+    selection = json.loads(selection_path.read_text(encoding="utf-8"))
     selection_path.write_text(json.dumps({**selection, "changed": True}), encoding="utf-8")
     with pytest.raises(ModelArtifactError, match="do not match their manifest"):
         load_project_model(tmp_path, experiment_id=experiment_id)
+
+
+@pytest.mark.parametrize(
+    ("experiment_context", "mismatch"),
+    [
+        (replace(config(), latitude=20.0, longitude=80.0), "latitude/longitude"),
+        (replace(config(), time_standard="LST"), "time_standard"),
+    ],
+)
+def test_selected_project_model_rejects_prediction_context_mismatch(
+    tmp_path, experiment_context: ExperimentConfig, mismatch: str
+) -> None:
+    experiment_id, _selection_path, _model_digest = _write_project_experiment(
+        tmp_path, experiment_context
+    )
+
+    with pytest.raises(ModelArtifactError, match=mismatch):
+        load_project_model(
+            tmp_path,
+            experiment_id=experiment_id,
+            expected_context=config(),
+        )
 
 
 def test_prediction_export_uses_identity_captured_at_inference(monkeypatch, tmp_path) -> None:

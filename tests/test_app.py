@@ -13,8 +13,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from sunreserve.config import ExperimentConfig
 from sunreserve.features import build_next_day_features
-from sunreserve.inference import PredictionResult, RidgeModelBundle
+from sunreserve.inference import ModelArtifactError, PredictionResult, RidgeModelBundle
 from sunreserve.prediction_export import PREDICTION_EXPORT_FIELDS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -613,6 +614,30 @@ def test_experiment_selector_routes_prediction_and_replay(monkeypatch, tmp_path)
 
     assert selected == [("prediction", "trial-1"), ("replay", "loaded")]
     assert ui.values("selectbox") == ["Validation artifact set", "Validation artifact set"]
+
+
+def test_selected_prediction_passes_expected_context_before_location_ui(
+    monkeypatch: pytest.MonkeyPatch, prediction_ui: FakeUI
+) -> None:
+    calls = []
+
+    def reject_selected_context(
+        _root: Path,
+        *,
+        experiment_id: str | None = None,
+        expected_context: ExperimentConfig | None = None,
+    ):
+        calls.append((experiment_id, expected_context))
+        raise ModelArtifactError("selected experiment context mismatch")
+
+    monkeypatch.setattr(app, "load_project_model", reject_selected_context)
+
+    app._show_prediction(ROOT, experiment_id="trial-1")
+
+    assert calls == [("trial-1", ExperimentConfig())]
+    assert any("Trained model unavailable" in value for value in prediction_ui.values("error"))
+    assert not any("Reference location" in value for value in prediction_ui.values("markdown"))
+    assert not prediction_ui.values("number_input")
 
 
 def test_recovery_guidance_separates_shipped_restore_from_new_experiment(monkeypatch) -> None:
