@@ -29,7 +29,7 @@ protobuf==7.36.2
 pyarrow==26.0.1
 pydeck==0.9.3
 Pygments==2.21.0
-pytest==9.0.3
+pytest==9.2.0
 python-dateutil==4.0.0
 python-multipart==0.0.33
 referencing==0.37.0
