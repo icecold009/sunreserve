@@ -15,6 +15,9 @@ checkpoint, no release tag had been created.
   finalization uses the saved numeric model bundle rather than fitting a new model.
 - Added pinned environment snapshots, bounded CI checks, dependency-audit guidance, and
   weekly dependency/action update proposals.
+- Raised the setuptools minimum to 84.1.0 in build and development environments after audit
+  findings; pinned that lower bound in the compatibility check. The captured Windows snapshot
+  remains unchanged because setuptools was not present in that environment.
 - At the 2026-11-19 pre-integration checkpoint, this candidate was in the uncommitted working
   tree and had not received hosted CI or a candidate pull request; no release tag or publication
   was recorded at capture.

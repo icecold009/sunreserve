@@ -12,4 +12,15 @@ Dependabot proposes weekly updates for Python packages and GitHub Actions. Workf
 4. If no safe fix is available, document the advisory identifier, affected path, exposure assessment, compensating action, owner, and a review date in the change proposal. Do not silently suppress the scanner or treat an unpatched finding as resolved.
 5. Address confirmed critical or high-severity reachable findings before routine feature work. For suspected vulnerabilities in SunReserve itself, check the repository's configured security policy and reporting route. If none is configured, request a private contact from a maintainer; never put exploit details in a public issue.
 
+## Setuptools lower-bound update (2026-11-19)
+
+The clean-environment audit found setuptools 79.0.1 affected by PYSEC-2026-3447 and
+GHSA-xmj3-9gf7-h52w. The first advisory lists 83.0.0 as fixed; the GitHub advisory lists
+84.1.0, so this candidate uses the higher floor. It sets `setuptools>=84.1.0` for both the
+build environment and development extra, and `requirements/compat-minimums.txt` pins the
+exercised minimum at 84.1.0. The recorded Windows environment snapshot is unchanged because
+setuptools was not present in that captured environment. Local clean-install and compatibility
+checks, `pip check`, and `pip-audit` passed. The Python 3.13 full suite passed with 296 tests
+passed and four skipped. Hosted CI for the exact follow-up head remains pending.
+
 The scanner reports known package advisories. It does not establish that a package is benign, catch every supply-chain compromise, inspect native system libraries, or replace code review.

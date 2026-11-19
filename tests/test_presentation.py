@@ -20,12 +20,17 @@ from sunreserve.decision import (
     DEMAND_LEVELS_KWH,
     evaluate_decision_scenarios,
 )
-from sunreserve.evaluate import ARTIFACT_SCHEMA_VERSION, PREDICTION_CLIP_RULE, forecast_metrics
+from sunreserve.evaluate import (
+    ARTIFACT_SCHEMA_VERSION,
+    DEVELOPMENT_ROWS_DIGEST_FORMAT,
+    PREDICTION_CLIP_RULE,
+    _sha256_prepared_csv_prefix,
+    forecast_metrics,
+)
 from sunreserve.presentation import (
     ArtifactError,
     _canonical_hash,
     _current_code_hashes,
-    _development_data_hash,
     artifact_signature,
     list_validation_experiments,
     load_demo_artifacts,
@@ -135,9 +140,8 @@ def write_demo_fixture(root: Path) -> None:
             "decision_metrics.csv",
         )
     }
-    daily_development = daily.loc[daily["date"] <= pd.Timestamp(config.validation_end)].set_index(
-        "date"
-    )
+    development_count = (config.validation_end - config.start_date).days + 1
+    prepared_daily_bytes = paths.daily_path.read_bytes()
     manifest = {
         "schema_version": ARTIFACT_SCHEMA_VERSION,
         "artifact_type": "sunreserve_validation_selection",
@@ -151,7 +155,10 @@ def write_demo_fixture(root: Path) -> None:
             "raw_response_sha256": raw_digest,
             "quality_report_sha256": hashlib.sha256(paths.quality_path.read_bytes()).hexdigest(),
             "prepared_daily_csv_sha256": quality["prepared_daily_csv_sha256"],
-            "prepared_development_rows_sha256": _development_data_hash(daily_development),
+            "prepared_development_rows_sha256": _sha256_prepared_csv_prefix(
+                prepared_daily_bytes, development_count
+            ),
+            "prepared_development_rows_digest_format": DEVELOPMENT_ROWS_DIGEST_FORMAT,
         },
         "development_artifact_hashes": development_artifact_hashes,
         "validation_target_period": [
@@ -262,6 +269,75 @@ def test_offline_loader_accepts_complete_validation_fixture(demo_root) -> None:
         "ridge",
         "always_prepare_backup",
     }
+
+
+def test_development_row_digest_uses_persisted_prefix_and_excludes_final_rows(tmp_path) -> None:
+    write_demo_fixture(tmp_path)
+    config = ExperimentConfig()
+    paths = ProjectPaths(tmp_path)
+    manifest = json.loads((paths.validation_dir / "selection_manifest.json").read_text())
+    payload = paths.daily_path.read_bytes()
+    lines = payload.splitlines()
+    final_test_row = lines[-1].split(b",")
+    final_test_row[2] = b"999.0"
+    lines[-1] = b",".join(final_test_row)
+    changed_payload = b"\n".join(lines) + (b"\n" if payload.endswith(b"\n") else b"")
+
+    development_count = (config.validation_end - config.start_date).days + 1
+    development_row = lines[1].split(b",")
+    development_row[2] = b"999.0"
+    development_changed_lines = payload.splitlines()
+    development_changed_lines[1] = b",".join(development_row)
+    development_changed_payload = b"\n".join(development_changed_lines) + (
+        b"\n" if payload.endswith(b"\n") else b""
+    )
+
+    expected_digest = manifest["input_hashes"]["prepared_development_rows_sha256"]
+    assert manifest["input_hashes"]["prepared_development_rows_digest_format"] == (
+        DEVELOPMENT_ROWS_DIGEST_FORMAT
+    )
+    assert _sha256_prepared_csv_prefix(payload, development_count) == expected_digest
+    assert _sha256_prepared_csv_prefix(changed_payload, development_count) == expected_digest
+    assert (
+        _sha256_prepared_csv_prefix(development_changed_payload, development_count)
+        != expected_digest
+    )
+
+
+def test_legacy_row_digest_fallback_requires_verified_prepared_csv_bytes(tmp_path) -> None:
+    write_demo_fixture(tmp_path)
+    paths = ProjectPaths(tmp_path)
+    manifest_path = paths.validation_dir / "selection_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    input_hashes = manifest["input_hashes"]
+    input_hashes.pop("prepared_development_rows_digest_format")
+
+    config = ExperimentConfig()
+    development_count = (config.validation_end - config.start_date).days + 1
+    legacy_rows = pd.read_csv(
+        io.BytesIO(paths.daily_path.read_bytes()),
+        nrows=development_count,
+        parse_dates=["date"],
+    ).set_index("date")
+    legacy_payload = (
+        legacy_rows.rename_axis("date").to_csv(index_label="date", lineterminator="\n").encode()
+    )
+    input_hashes["prepared_development_rows_sha256"] = hashlib.sha256(legacy_payload).hexdigest()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    load_demo_artifacts(tmp_path)
+    paths.daily_path.write_bytes(paths.daily_path.read_bytes() + b"\n")
+    with pytest.raises(ArtifactError, match="Prepared daily bytes do not match"):
+        load_demo_artifacts(tmp_path)
+
+
+def test_missing_quality_report_has_actionable_artifact_error(tmp_path) -> None:
+    write_demo_fixture(tmp_path)
+    paths = ProjectPaths(tmp_path)
+    paths.quality_path.unlink()
+
+    with pytest.raises(ArtifactError, match="data quality report is missing"):
+        load_demo_artifacts(tmp_path)
 
 
 def test_experiment_selector_lists_and_loads_scoped_validation_artifacts(tmp_path) -> None:

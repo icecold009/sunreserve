@@ -25,7 +25,14 @@ from sunreserve.decision import (
     PREDICTION_COLUMNS,
     RADIATION_COLUMN,
 )
-from sunreserve.evaluate import ARTIFACT_SCHEMA_VERSION, PREDICTION_CLIP_RULE, forecast_metrics
+from sunreserve.evaluate import (
+    ARTIFACT_SCHEMA_VERSION,
+    DEVELOPMENT_ROWS_DIGEST_FORMAT,
+    LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT,
+    PREDICTION_CLIP_RULE,
+    _development_rows_digest_matches,
+    forecast_metrics,
+)
 from sunreserve.features import TARGET_COLUMN
 
 FORECAST_COLUMNS = {
@@ -94,11 +101,14 @@ MANIFEST_REQUIRED_FIELDS = {
     "development_artifact_hashes",
 }
 _SAFE_EXPERIMENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
-INPUT_HASH_FIELDS = {
+LEGACY_INPUT_HASH_FIELDS = {
     "raw_response_sha256",
     "quality_report_sha256",
     "prepared_daily_csv_sha256",
     "prepared_development_rows_sha256",
+}
+INPUT_HASH_FIELDS = LEGACY_INPUT_HASH_FIELDS | {
+    "prepared_development_rows_digest_format",
 }
 FORECAST_METRIC_FIELDS = {
     "sample_count",
@@ -158,11 +168,6 @@ class DemoArtifacts:
 def _canonical_hash(value: Any) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     return hashlib.sha256(encoded).hexdigest()
-
-
-def _development_data_hash(daily: pd.DataFrame) -> str:
-    payload = daily.rename_axis("date").to_csv(index_label="date", lineterminator="\n").encode()
-    return hashlib.sha256(payload).hexdigest()
 
 
 def _current_code_hashes(root: Path) -> dict[str, str]:
@@ -833,7 +838,14 @@ def _validate_decision_summaries(
             raise ArtifactError("stale", f"Manifest decision metric {key} has a different model.")
 
 
-def _load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.DataFrame:
+def _load_development_daily(
+    paths: ProjectPaths,
+    config: ExperimentConfig,
+    *,
+    prepared_bytes: bytes | None = None,
+    quality: dict[str, Any] | None = None,
+    sidecar: dict[str, Any] | None = None,
+) -> pd.DataFrame:
     for path, label in (
         (paths.quality_path, "data quality report"),
         (paths.sidecar_path, "source provenance sidecar"),
@@ -847,8 +859,14 @@ def _load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd
                 "`python -m sunreserve prepare` and `python -m sunreserve validate`.",
             )
 
-    quality = _read_json(paths.quality_path, "data quality report")
-    sidecar = _read_json(paths.sidecar_path, "source provenance sidecar")
+    quality = (
+        quality if quality is not None else _read_json(paths.quality_path, "data quality report")
+    )
+    sidecar = (
+        sidecar
+        if sidecar is not None
+        else _read_json(paths.sidecar_path, "source provenance sidecar")
+    )
     try:
         raw_digest = hashlib.sha256(paths.raw_path.read_bytes()).hexdigest()
     except OSError as error:
@@ -867,10 +885,31 @@ def _load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd
     ):
         raise ArtifactError("stale", "Prepared data date range does not match the saved config.")
 
+    if prepared_bytes is None:
+        try:
+            prepared_bytes = paths.daily_path.read_bytes()
+        except OSError as error:
+            raise ArtifactError(
+                "corrupt", f"Prepared daily data cannot be read: {error}"
+            ) from error
+    prepared_digest = quality.get("prepared_daily_csv_sha256")
+    if (
+        not isinstance(prepared_digest, str)
+        or re.fullmatch(r"[0-9a-fA-F]{64}", prepared_digest) is None
+        or hashlib.sha256(prepared_bytes).hexdigest() != prepared_digest.lower()
+    ):
+        raise ArtifactError(
+            "stale", "Prepared daily bytes do not match the quality report checksum."
+        )
+
     development_count = (config.validation_end - config.start_date).days + 1
     expected = pd.date_range(config.start_date, config.validation_end, freq="D")
     try:
-        daily = pd.read_csv(paths.daily_path, nrows=development_count, parse_dates=["date"])
+        daily = pd.read_csv(
+            io.BytesIO(prepared_bytes),
+            nrows=development_count,
+            parse_dates=["date"],
+        )
     except (OSError, pd.errors.ParserError, ValueError) as error:
         raise ArtifactError(
             "corrupt", f"Prepared development rows cannot be read: {error}"
@@ -1007,10 +1046,22 @@ def load_demo_artifacts(
     input_hashes = manifest.get("input_hashes")
     if not isinstance(input_hashes, dict):
         raise ArtifactError("incompatible", "Selection manifest input hashes must be an object.")
-    _require_exact_keys(input_hashes, INPUT_HASH_FIELDS, "Selection input hashes")
+    input_hash_fields = set(input_hashes)
+    has_digest_format = "prepared_development_rows_digest_format" in input_hash_fields
+    if input_hash_fields not in (
+        LEGACY_INPUT_HASH_FIELDS,
+        INPUT_HASH_FIELDS,
+    ):
+        raise ArtifactError("incompatible", "Selection input hashes have an unsupported schema.")
+    if has_digest_format and input_hashes["prepared_development_rows_digest_format"] not in (
+        DEVELOPMENT_ROWS_DIGEST_FORMAT,
+        LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT,
+    ):
+        raise ArtifactError("incompatible", "Development-row digest format is unsupported.")
     if any(
         not isinstance(value, str) or re.fullmatch(r"[0-9a-fA-F]{64}", value) is None
-        for value in input_hashes.values()
+        for key, value in input_hashes.items()
+        if key != "prepared_development_rows_digest_format"
     ):
         raise ArtifactError("incompatible", "Selection manifest contains an invalid input hash.")
     if manifest.get("validation_target_period") != [
@@ -1079,26 +1130,62 @@ def load_demo_artifacts(
         or not isinstance(manifest.get("code_revision"), str)
     ):
         raise ArtifactError("incompatible", "Selection manifest producer identity is invalid.")
-    daily = _load_development_daily(paths, config)
-    expected_data_hash = _development_data_hash(daily)
-    quality = _read_json(paths.quality_path, "data quality report")
+    for path, label in (
+        (paths.quality_path, "data quality report"),
+        (paths.sidecar_path, "source provenance sidecar"),
+        (paths.raw_path, "raw source cache"),
+        (paths.daily_path, "prepared daily data"),
+    ):
+        if not path.is_file():
+            raise ArtifactError(
+                "missing",
+                f"{label} is missing at `{path}`. Restore local cached inputs, then run "
+                "`python -m sunreserve prepare` and `python -m sunreserve validate`.",
+            )
+    try:
+        quality_bytes = paths.quality_path.read_bytes()
+    except OSError as error:
+        raise ArtifactError("corrupt", f"Data quality report cannot be read: {error}") from error
+    quality = _parse_json_object(quality_bytes, "data quality report")
     sidecar = _read_json(paths.sidecar_path, "source provenance sidecar")
-    if input_hashes.get("prepared_development_rows_sha256") != expected_data_hash:
+    if input_hashes["quality_report_sha256"] != hashlib.sha256(quality_bytes).hexdigest():
+        raise ArtifactError("stale", "Quality report changed after validation was frozen.")
+    prepared_digest = quality.get("prepared_daily_csv_sha256")
+    if (
+        input_hashes["prepared_daily_csv_sha256"] != prepared_digest
+        or not isinstance(prepared_digest, str)
+        or re.fullmatch(r"[0-9a-fA-F]{64}", prepared_digest) is None
+    ):
+        raise ArtifactError(
+            "stale", "Validation artifacts reference different prepared daily data."
+        )
+    try:
+        prepared_bytes = paths.daily_path.read_bytes()
+    except OSError as error:
+        raise ArtifactError("corrupt", f"Prepared daily data cannot be read: {error}") from error
+    if hashlib.sha256(prepared_bytes).hexdigest() != prepared_digest.lower():
+        raise ArtifactError(
+            "stale", "Prepared daily bytes do not match the quality report checksum."
+        )
+    daily = _load_development_daily(
+        paths,
+        config,
+        prepared_bytes=prepared_bytes,
+        quality=quality,
+        sidecar=sidecar,
+    )
+    if not _development_rows_digest_matches(
+        daily,
+        prepared_bytes,
+        (config.validation_end - config.start_date).days + 1,
+        input_hashes.get("prepared_development_rows_sha256"),
+        input_hashes.get("prepared_development_rows_digest_format"),
+    ):
         raise ArtifactError("stale", "Prepared validation inputs have changed since the run.")
     if input_hashes.get("raw_response_sha256") != sidecar.get("sha256"):
         raise ArtifactError(
             "stale", "Validation artifacts reference a different raw source response."
         )
-    if input_hashes["prepared_daily_csv_sha256"] != quality.get("prepared_daily_csv_sha256"):
-        raise ArtifactError(
-            "stale", "Validation artifacts reference different prepared daily data."
-        )
-    if (
-        input_hashes.get("quality_report_sha256")
-        != hashlib.sha256(paths.quality_path.read_bytes()).hexdigest()
-    ):
-        raise ArtifactError("stale", "Quality report changed after validation was frozen.")
-
     forecasts = _read_csv(output_bytes["validation_predictions.csv"], "Validation predictions")
     decisions = _read_csv(output_bytes["decision_predictions.csv"], "Decision predictions")
     decision_metrics = _read_csv(output_bytes["decision_metrics.csv"], "Decision metrics")

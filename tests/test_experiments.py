@@ -61,9 +61,11 @@ def fake_validation(
     model_path=None,
     recorded_model_path=None,
     _verified_daily=None,
+    _verified_prepared_bytes=None,
 ):
     assert output_dir is not None and model_path is not None and recorded_model_path is not None
     assert _verified_daily is not None
+    assert _verified_prepared_bytes == paths.daily_path.read_bytes()
     assert _verified_daily.index.max() <= pd.Timestamp(_config.validation_end)
     (output_dir / "selection_manifest.json").write_text(
         json.dumps({"decision_selection": {"selected_model": "ridge"}}), encoding="utf-8"

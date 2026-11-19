@@ -66,6 +66,12 @@ Normal imports, preparation, validation, and app startup do not make network req
 interpolating, plus `data/processed/quality_report.json` with per-variable and per-year
 missing counts, exact missing dates, and complete-case exclusions.
 
+Validation manifests bind the full prepared CSV bytes and the exact persisted CSV prefix
+through `validation_end`. New manifests mark prefix digests as `prepared-csv-prefix-v1` and
+hash the header plus exactly the configured development-row count, independent of pandas CSV
+parsing or formatting. Markerless legacy manifests remain usable only when the full prepared
+CSV bytes match the checksums recorded by both the manifest and quality report.
+
 ## Supervised row timing and coverage
 
 Each issue date `t` targets the radiation observation on the next calendar date

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import importlib.metadata
 import io
@@ -57,6 +58,8 @@ from sunreserve.train import baseline_predictions, fit_ridge, predict_persistenc
 
 ARTIFACT_SCHEMA_VERSION = 2
 FINAL_RUN_SCHEMA_VERSION = 1
+LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT = "date-float-hex-v1"
+DEVELOPMENT_ROWS_DIGEST_FORMAT = "prepared-csv-prefix-v1"
 FINAL_FORECAST_APPROACHES = {"persistence", "seasonal_mean", "ridge"}
 FINAL_DECISION_APPROACHES = {*FINAL_FORECAST_APPROACHES, "always_prepare_backup"}
 FINAL_PREDICTION_COLUMNS = {
@@ -532,19 +535,17 @@ def _validate_development_provenance(
     return quality, prepared_bytes
 
 
-def load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.DataFrame:
-    """Load verified data through validation; never parse final-test rows."""
-    if not paths.daily_path.is_file():
-        raise DataError(
-            f"prepared daily data is missing at {paths.daily_path}; run fetch and prepare first"
-        )
-    _, prepared_bytes = _validate_development_provenance(paths, config)
-
+def _parse_development_daily(prepared_bytes: bytes, config: ExperimentConfig) -> pd.DataFrame:
+    """Parse only verified CSV rows through validation; never parse final-test rows."""
     development_days = (config.validation_end - config.start_date).days + 1
     if development_days <= 0:
         raise DataError("validation end date must follow the experiment start date")
     try:
-        data = pd.read_csv(io.BytesIO(prepared_bytes), nrows=development_days, parse_dates=["date"])
+        data = pd.read_csv(
+            io.BytesIO(prepared_bytes),
+            nrows=development_days,
+            parse_dates=["date"],
+        )
     except (ValueError, pd.errors.ParserError) as error:
         raise DataError(f"cannot read prepared development data: {error}") from error
     expected_columns = ["date", *config.parameters]
@@ -568,6 +569,24 @@ def load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.
     return data.set_index("date")
 
 
+def _load_development_daily_with_bytes(
+    paths: ProjectPaths, config: ExperimentConfig
+) -> tuple[pd.DataFrame, bytes]:
+    """Load the verified development frame and retain its exact prepared CSV bytes."""
+    if not paths.daily_path.is_file():
+        raise DataError(
+            f"prepared daily data is missing at {paths.daily_path}; run fetch and prepare first"
+        )
+    _, prepared_bytes = _validate_development_provenance(paths, config)
+    return _parse_development_daily(prepared_bytes, config), prepared_bytes
+
+
+def load_development_daily(paths: ProjectPaths, config: ExperimentConfig) -> pd.DataFrame:
+    """Load verified data through validation; never parse final-test rows."""
+    daily, _ = _load_development_daily_with_bytes(paths, config)
+    return daily
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -577,10 +596,94 @@ def _sha256_file(path: Path) -> str:
 
 
 def _sha256_daily_frame(daily: pd.DataFrame) -> str:
+    """Hash a frame using the historical pandas CSV encoding for holdout context."""
     payload = (
         daily.rename_axis("date").to_csv(index_label="date", lineterminator="\n").encode("utf-8")
     )
     return hashlib.sha256(payload).hexdigest()
+
+
+def _prepared_csv_prefix_bytes(prepared_bytes: bytes, development_rows: int) -> bytes:
+    """Return the exact header and configured number of one-line prepared CSV records."""
+    if type(development_rows) is not int or development_rows <= 0:
+        raise ValueError("development row count must be a positive integer")
+    lines = prepared_bytes.splitlines(keepends=True)
+    required_lines = development_rows + 1
+    if len(lines) < required_lines:
+        raise ValueError("prepared CSV does not contain the complete development prefix")
+    prefix = b"".join(lines[:required_lines])
+    if b'"' in prefix:
+        raise ValueError("prepared CSV development prefix contains unsupported quoted rows")
+    return prefix
+
+
+def _sha256_prepared_csv_prefix(prepared_bytes: bytes, development_rows: int) -> str:
+    """Hash the exact CSV header and persisted rows through the development boundary."""
+    prefix = _prepared_csv_prefix_bytes(prepared_bytes, development_rows)
+    digest = hashlib.sha256()
+    digest.update(
+        f"sunreserve-prepared-csv-prefix\t{DEVELOPMENT_ROWS_DIGEST_FORMAT}\t"
+        f"{development_rows}\n".encode("ascii")
+    )
+    digest.update(prefix)
+    return digest.hexdigest()
+
+
+def _sha256_legacy_prepared_csv_prefix(prepared_bytes: bytes, development_rows: int) -> str:
+    """Reproduce the intermediate float-hex manifest hash directly from persisted CSV."""
+    prefix = _prepared_csv_prefix_bytes(prepared_bytes, development_rows)
+    try:
+        records = list(csv.reader(io.StringIO(prefix.decode("utf-8"), newline="")))
+    except (UnicodeDecodeError, csv.Error) as error:
+        raise ValueError("prepared CSV development prefix cannot be parsed") from error
+    if len(records) != development_rows + 1 or not records or not records[0]:
+        raise ValueError("prepared CSV development prefix has an invalid record count")
+    header = records[0]
+    if header[0] != "date" or any(len(record) != len(header) for record in records[1:]):
+        raise ValueError("prepared CSV development prefix has an invalid schema")
+
+    digest = hashlib.sha256()
+    digest.update(
+        f"sunreserve-development-rows\t{LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT}\n".encode()
+    )
+    digest.update(("\t".join(header) + "\n").encode("utf-8"))
+    for record in records[1:]:
+        try:
+            iso_date = datetime.fromisoformat(record[0]).date().isoformat()
+            numeric_values = [float(value) for value in record[1:]]
+        except (ValueError, OverflowError) as error:
+            raise ValueError("prepared CSV development prefix contains invalid values") from error
+        if not all(math.isfinite(value) for value in numeric_values):
+            raise ValueError("prepared CSV development prefix contains non-finite values")
+        fields = [iso_date, *(value.hex() for value in numeric_values)]
+        digest.update(("\t".join(fields) + "\n").encode("ascii"))
+    return digest.hexdigest()
+
+
+def _development_rows_digest_matches(
+    daily: pd.DataFrame,
+    prepared_bytes: bytes,
+    development_rows: int,
+    expected: Any,
+    digest_format: Any,
+) -> bool:
+    """Verify marked digests; markerless legacy values rely on the full CSV checksum."""
+    if not isinstance(expected, str) or re.fullmatch(r"[0-9a-fA-F]{64}", expected) is None:
+        return False
+    if digest_format is None:
+        # Older manifests hashed pandas CSV reserialization, which varies by pandas release.
+        # Callers verify the complete prepared CSV bytes against its manifest-bound digest first.
+        return True
+    try:
+        if digest_format == DEVELOPMENT_ROWS_DIGEST_FORMAT:
+            actual = _sha256_prepared_csv_prefix(prepared_bytes, development_rows)
+        elif digest_format == LEGACY_DEVELOPMENT_ROWS_DIGEST_FORMAT:
+            actual = _sha256_legacy_prepared_csv_prefix(prepared_bytes, development_rows)
+        else:
+            return False
+        return actual == expected.lower()
+    except (TypeError, ValueError, OverflowError):
+        return False
 
 
 def _canonical_json_hash(values: Any) -> str:
@@ -625,11 +728,17 @@ def run_validation(
     model_path: Path | None = None,
     recorded_model_path: Path | None = None,
     _verified_daily: pd.DataFrame | None = None,
+    _verified_prepared_bytes: bytes | None = None,
 ) -> ValidationSelection:
     """Run cached validation-only selection and write versioned development artifacts."""
-    daily = (
-        _verified_daily if _verified_daily is not None else load_development_daily(paths, config)
-    )
+    if _verified_daily is None:
+        daily, prepared_bytes = _load_development_daily_with_bytes(paths, config)
+    else:
+        daily = _verified_daily
+        if _verified_prepared_bytes is None:
+            _, prepared_bytes = _validate_development_provenance(paths, config)
+        else:
+            prepared_bytes = _verified_prepared_bytes
     rows, audit = build_supervised_rows(
         daily,
         config,
@@ -691,7 +800,11 @@ def run_validation(
         "prepared_daily_csv_sha256": json.loads(paths.quality_path.read_text(encoding="utf-8"))[
             "prepared_daily_csv_sha256"
         ],
-        "prepared_development_rows_sha256": _sha256_daily_frame(daily),
+        "prepared_development_rows_sha256": _sha256_prepared_csv_prefix(
+            prepared_bytes,
+            (config.validation_end - config.start_date).days + 1,
+        ),
+        "prepared_development_rows_digest_format": DEVELOPMENT_ROWS_DIGEST_FORMAT,
     }
     config_values = config.to_dict()
     config_hash = _canonical_json_hash(config_values)
@@ -872,7 +985,7 @@ def run_experiment_validation(
             f"experiment ID is reserved (active or stale); inspect and resolve manually: {run_id}"
         )
 
-    verified_daily = load_development_daily(paths, config)
+    verified_daily, verified_prepared_bytes = _load_development_daily_with_bytes(paths, config)
     experiments.mkdir(parents=True, exist_ok=True)
     locks.mkdir(exist_ok=True)
     try:
@@ -895,6 +1008,7 @@ def run_experiment_validation(
             model_path=model_path,
             recorded_model_path=destination / "models" / "ridge_model.json",
             _verified_daily=verified_daily,
+            _verified_prepared_bytes=verified_prepared_bytes,
         )
         manifest_path = validation_dir / "selection_manifest.json"
         selection_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1224,8 +1338,14 @@ def _validate_frozen_development(
         if not path.is_file() or _sha256_file(path) != expected_hash:
             raise DataError(f"development artifact is missing or changed: {name}")
 
-    daily = load_development_daily(paths, config)
-    if _sha256_daily_frame(daily) != input_hashes.get("prepared_development_rows_sha256"):
+    daily, prepared_bytes = _load_development_daily_with_bytes(paths, config)
+    if not _development_rows_digest_matches(
+        daily,
+        prepared_bytes,
+        (config.validation_end - config.start_date).days + 1,
+        input_hashes.get("prepared_development_rows_sha256"),
+        input_hashes.get("prepared_development_rows_digest_format"),
+    ):
         raise DataError("prepared training/validation rows differ from the frozen manifest")
     # The exact manifest digest and all source/prepared/development inputs/code were
     # verified above before the finalizer parses the full daily file.
