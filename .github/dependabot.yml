@@ -2,11 +2,9 @@ version: 2
 updates:
   - package-ecosystem: pip
     directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-  - package-ecosystem: pip
-    directory: /requirements
+    exclude-paths:
+      - requirements/compat-minimums.txt
+      - requirements/snapshots/**
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -14,7 +12,7 @@ updates:
     directory: /requirements/snapshots
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0 # Disables version update PRs; security updates are separate.
   - package-ecosystem: github-actions
     directory: /
     schedule:
