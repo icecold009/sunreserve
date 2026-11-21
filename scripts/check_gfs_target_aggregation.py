@@ -103,6 +103,24 @@ def validate_manifest_shape(manifest: Any) -> None:
     )
 
 
+def validate_unique_record_ids(manifest: dict[str, Any]) -> None:
+    target_ids = [record["id"] for record in manifest["records"]]
+    supplemental_ids = [record["id"] for record in manifest["supplemental_out_of_target_records"]]
+    require(
+        len(target_ids) == len(set(target_ids)),
+        "duplicate record ID in target records",
+    )
+    require(
+        len(supplemental_ids) == len(set(supplemental_ids)),
+        "duplicate record ID in supplemental records",
+    )
+    collisions = set(target_ids).intersection(supplemental_ids)
+    require(
+        not collisions,
+        f"record ID appears in both target and supplemental records: {sorted(collisions)}",
+    )
+
+
 def validate_record_metadata(record: dict[str, Any], source: dict[str, Any]) -> None:
     metadata = record["metadata_response_excerpt"]
     require(
@@ -176,6 +194,7 @@ def main() -> int:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         validate_manifest_shape(manifest)
+        validate_unique_record_ids(manifest)
         evidence_dir = manifest_path.parent
         study = manifest["study_contract"]
         source = manifest["source"]

@@ -4,7 +4,7 @@
 
 SunReserve uses a trained solar-radiation model to explore tomorrow’s backup-energy needs.
 
-![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) ![287 passed, 4 skipped](https://img.shields.io/badge/Tests-287%20passed%2C%204%20skipped-f2c14e)
+![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) ![306 passed, 4 skipped](https://img.shields.io/badge/Tests-306%20passed%2C%204%20skipped-f2c14e)
 
 <p align="center"><img src="docs/assets/prediction-demo.png" alt="SunReserve fresh Ridge forecast and planned reserve beside a seven-day input window and baseline comparison" width="900"></p>
 

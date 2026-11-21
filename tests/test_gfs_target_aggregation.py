@@ -80,3 +80,35 @@ def test_malformed_manifest_reports_cli_error(tmp_path: Path) -> None:
     result = run_checker(manifest_path)
     assert result.returncode == 1
     assert "AGGREGATION FAIL: manifest must be a JSON object" in result.stderr
+
+
+def test_duplicate_target_record_ids_are_rejected(tmp_path: Path) -> None:
+    manifest_path = copied_evidence(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["records"].append(manifest["records"][0].copy())
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    result = run_checker(manifest_path)
+    assert result.returncode == 1
+    assert "duplicate record ID in target records" in result.stderr
+
+
+def test_duplicate_supplemental_record_ids_are_rejected(tmp_path: Path) -> None:
+    manifest_path = copied_evidence(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["supplemental_out_of_target_records"].append(
+        manifest["supplemental_out_of_target_records"][0].copy()
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    result = run_checker(manifest_path)
+    assert result.returncode == 1
+    assert "duplicate record ID in supplemental records" in result.stderr
+
+
+def test_target_supplemental_record_id_collision_is_rejected(tmp_path: Path) -> None:
+    manifest_path = copied_evidence(tmp_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["records"].append(manifest["supplemental_out_of_target_records"][0].copy())
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    result = run_checker(manifest_path)
+    assert result.returncode == 1
+    assert "record ID appears in both target and supplemental records" in result.stderr

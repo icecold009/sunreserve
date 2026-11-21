@@ -72,9 +72,11 @@ and metadata consistency; its +060 to +063 interval falls outside the target and
 is excluded from the integration. These hashes identify CSV response bytes, not
 raw GRIB. No raw GRIB or complete XML response body was captured.
 
-Historical first-publication and issue-time availability remain **UNVERIFIED**;
-exact client receipt timestamps are unavailable for five of the six target CSVs.
-The archived CSV retrievals do not demonstrate publication by the 2020 issue
-cutoff, and the model-grid sample does not establish any observed site outcome.
+Historical first-publication and issue-time availability remain **UNVERIFIED**.
+All six target records have a null `client_receipt_timestamp_utc` field. The
+`response_observed_by_utc` value recorded for f024 is an observed-by metadata time,
+not a preserved client receipt clock. The archived CSV retrievals do not
+demonstrate publication by the 2020 issue cutoff, and the model-grid sample does
+not establish any observed site outcome.
 Operational evaluation is **NOT PERMITTED** on this evidence. The historical
 inventory and its byte-comparison statements above retain their original scope.
