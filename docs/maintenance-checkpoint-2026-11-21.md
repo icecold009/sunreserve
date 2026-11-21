@@ -19,8 +19,9 @@ four cycles per day (00, 06, 12, and 18 UTC) and three-hourly output through
 +384 hours ([NCEI GFS product page](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast)).
 No prospective data has been captured in this checkpoint. A capture should retain
 raw bytes and checksums, exact requests, response metadata, and client receipt
-timestamps. Do not begin evaluation until a study site and a target-aligned
-observed-radiation source and quality-control procedure are selected. IMD's 2025
+timestamps. The Bengaluru comparison site is selected; evaluation remains blocked
+until a target-aligned observed-radiation source and quality-control procedure are
+selected. IMD's 2025
 annual report states that it operates 47 Solar Radiation Stations; that count does
 not establish data access or the availability of a Bengaluru station
 ([IMD Annual Report 2025](https://metnet.imd.gov.in/docs/imdnews/ANNUAL_REPORT2025English.pdf)).
