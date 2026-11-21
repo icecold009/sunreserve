@@ -1,8 +1,8 @@
 # Forecast-time-valid inputs and evaluation protocol
 
-**Status:** P4 protocol draft; source qualification is incomplete.
+**Status:** P4 protocol draft; the NOAA GFS screen below is a no-go for a historical issue-time-valid backtest. Study configuration and source qualification remain open.
 
-**Reviewed:** 2026-11-19.
+**Reviewed:** 2026-11-21.
 
 **Scope:** define the evidence required before SunReserve may describe a forecast as
 using inputs available at forecast issue time and define a chronological evaluation
@@ -24,8 +24,11 @@ that they were available at a simulated issue time. See the official [POWER late
 FAQ](https://power.larc.nasa.gov/docs/faqs/data/) and the project’s
 [data-source record](data_sources.md).
 
-No source is qualified by this document. No new data were downloaded, archive
-access was not tested, and no license, service agreement, or cost was evaluated.
+No source is qualified for an operational-validity claim. The NOAA screen below
+checked official product/access documentation and a sample catalog entry only; no
+forecast bytes were downloaded and no tape/archive order was placed. The historical
+archive's sample-byte retrieval, full revision policy, and any order or cloud
+processing costs remain unverified.
 
 ## Temporal contract
 
@@ -70,10 +73,14 @@ today does not show that it existed at the simulated issue time.
 Define a record’s usable availability time as the latest relevant time among source
 publication, delivery to the forecasting system, and any required processing step.
 An input is eligible only when that time is at or before the predeclared issue
-time, its valid period overlaps the target interval as intended, and all
-transformations use only eligible records. Model forecasts also require both an
-initialization time and proof that the selected run was disseminated by issue time;
-initialization alone is insufficient.
+time and all transformations use only eligible records. Apply valid-time rules by
+input role: forecast covariates must cover or otherwise align with the target
+interval under the declared horizon and aggregation; lagged observations must lie
+within their declared historical feature window, ending no later than the issue
+cutoff, and need not overlap the target interval; static and calendar features
+must follow their declared semantics and be knowable at issue time. Model
+forecasts also require both an initialization time and proof that the selected
+run was disseminated by issue time; initialization alone is insufficient.
 
 Daily or other aggregated observations become available only after the aggregation
 period ends and the resulting product is published. If source publication time or
@@ -89,7 +96,8 @@ but not as evidence that historical model training had access to that version.
 ## Source qualification gate
 
 The following assessments are based on official documentation checked on
-2026-11-19. They are screening results, not approval to use a source.
+2026-11-19, except for the NOAA GFS screen checked on 2026-11-21. They are
+screening results, not approval to use a source.
 
 | Candidate | What the documentation establishes | Current decision |
 | --- | --- | --- |
@@ -98,6 +106,89 @@ The following assessments are based on official documentation checked on
 | ECMWF Open Data | The current service offers real-time IFS/AIFS forecasts and retains the latest 12 runs, about 2–3 days. Its documentation points to separate archive access for full historical data; archive access can require a service agreement. | Possible forward data-capture source or recent-cycle check, not a demonstrated multi-year historical backtest archive. Verify variable coverage, historical access, cost, terms, and exact publication evidence before selection. See [Open Data](https://www.ecmwf.int/en/forecasts/datasets/open-data), [archive access](https://www.ecmwf.int/en/forecasts/access-forecasts/access-archive-datasets), and [ordering historical datasets](https://www.ecmwf.int/en/forecasts/accessing-forecasts/order-historical-datasets). |
 | IMD forecast bulletins | The IMD standard operating procedure specifies issue and validity times and defines the meteorological day as 0830 IST to 0830 IST. | Timing semantics are useful, but a suitable archived Bengaluru point series, forecast variables, machine-readable vintages, availability evidence, and reuse terms have not been established. See the [IMD forecasting SOP](https://mausam.imd.gov.in/imd_latest/contents/pdf/forecasting_sop.pdf). |
 | Site or nearby measurements | Needed to support site-specific outcome claims and to characterize local error. | No site meter or station dataset has been selected or verified. Confirm sampling, calibration, missingness, location, rights, and publication times before use. |
+| NOAA/NCEP GFS 0.5° archive | Four daily UTC cycles, 3-hourly output through +192h in the long-term 0.5° archive; surface DSWRF is a downward shortwave flux field, with 0–3h average values in the 3-hour product. NCEI documents an approximately two-year online window, with 2006–present data available for tape order. | **No-go for historical issue-time-valid evaluation on current evidence.** The archive catalog identifies a run and forecast hour but does not give the sample’s original publication/availability time. NCEP’s current production page gives 30-day mean production timing, not a historical per-run publication log. The illustrative IMD meteorological-day target aligns with the 3-hour grid; a midnight-to-midnight local civil-day target would not. Keep as a prospective capture candidate only; see the bounded screen below. |
+
+### Bounded NOAA GFS access and sample-vintage screen
+
+This screen was completed on 2026-11-21 using official documentation and catalog
+metadata. It did not download forecast data, place an archive order, or approve a
+study configuration. The following values are a comparison example based on the
+existing demo point, not an operating schedule or an approved study contract:
+
+| Field | Provisional comparison value | Status |
+| --- | --- | --- |
+| Site and timezone | Existing demo point, 12.9716° N, 77.5946° E; `Asia/Kolkata` | Candidate only; site is not confirmed for a study. |
+| Issue cutoff | 18:00 local time (12:30 UTC) on day D | Candidate only; no operator deadline has been supplied. |
+| Target interval | Next IMD meteorological day, 08:30 IST on D+1 through 08:30 IST on D+2, equivalent to `[03:00 UTC on D+1, 03:00 UTC on D+2)` | Candidate only; not a local civil day or confirmed operating interval. This 24-hour interval aligns to complete 3-hour GFS bins. |
+| Target quantity | Daily integrated downward shortwave radiation at the model grid cell, expressed as kWh/m² | Radiation, not electricity; the measured outcome source and QC procedure remain unselected. |
+| Vintage rule | Latest 00/06/12/18 UTC GFS run whose required fields are proven disseminated and retrievable by cutoff | This rule cannot be reconstructed for historical sample dates from evidence found in this screen. |
+
+**Archive and sample record.** NCEI documents the GFS 0.5° forecast archive from
+2006 to present, approximately two years online, with 3-hourly outputs through
+forecast hour +192; records beyond the online window may require a tape order.
+The NCEI THREDDS catalog advertises a sample record for the 2022-12-31 00:00 UTC
+run at forecast hour +006 (`gfs_3_20221231_0000_006.grb2`, catalog size
+44,681,004 bytes). This establishes that a run/lead-time catalog entry exists,
+not that its bytes were retrieved in this task or when the field first became
+available to a forecaster. NCEI says its cloud migration runs through Spring
+2027 and may delay archive and access services. See the [GFS archive description](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast),
+the [sample catalog entry](https://www.ncei.noaa.gov/thredds/catalog/model-gfs-004-files/202212/20221231/catalog.html?dataset=gfs-g4-files%2F202212%2F20221231%2Fgfs_3_20221231_0000_006.grb2),
+and [NCEI's migration notice](https://www.ncei.noaa.gov/news/cloud-migration).
+
+**Forecast content and timing.** NCEP's product inventory lists surface DSWRF
+for the 0.5° product as a 0–3-hour average in W/m². Under the illustrative IMD
+meteorological-day target, eight complete 3-hour intervals span 03:00 UTC to
+03:00 UTC the following day, so the integrated irradiation can be computed by
+weighting each interval mean by three hours and converting Wh/m² to kWh/m². This
+is a radiation estimate at the model grid, not measured site electricity. If the
+study instead requires midnight-to-midnight Asia/Kolkata, its boundaries fall
+at 18:30 UTC and bisect the GFS 3-hour bins; that target needs a finer qualified
+source or a predeclared partial-bin treatment. The target choice remains open.
+See the [GFS 0.5° product inventory](https://www.nco.ncep.noaa.gov/pmb/products/gfs/gfs.t12z.pgrb2full.0p50.f003.shtml),
+[GRIB shortwave units](https://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc/grib2_table4-2-0-4.shtml),
+and the [IMD forecasting SOP](https://mausam.imd.gov.in/imd_latest/contents/pdf/forecasting_sop.pdf)
+for its meteorological-day definition.
+
+NCEP's live production-status page reports 30-day average job times. For the
+illustrative issue cutoff, the latest plausible cycle is 06 UTC on D. The target
+then spans forecast leads +021 to +045; its eight DSWRF interval means end at
++024, +027, +030, +033, +036, +039, +042, and +045. The 06 UTC 48-hour product
+group was averaging a 09:50:29 UTC finish, about 2 hours 40 minutes before the
+12:30 UTC cutoff; the full +000-to-+384 forecast averaged an 11:09:45 UTC finish,
+about 80 minutes before cutoff. The 12 UTC 48-hour product group was averaging a
+15:51:27 UTC finish, after the illustrative cutoff. These are current 30-day
+averages, not historical per-vintage release receipts or guarantees. They do not establish that those
+fields were published before any simulated issue time. No per-vintage publication
+log or first-seen receipt was located. See [NCEP production status](https://www.nco.ncep.noaa.gov/pmb/nwprod/prodstat/index.html),
+which states that the times are 30-day running averages.
+
+**Access, revisions, and decision.** NCEI lists HTTPS, THREDDS, and archive
+ordering routes. NOAA says data available through NODD are free to access, have
+no use restrictions or registration requirement, and have no data egress charge;
+cloud compute services may still have their own charges. The NODD GFS feed is a
+trailing 30-day window, while older data use NCEI's separate archive routes. No
+source-specific estimate for tape/archive orders or cloud processing was checked.
+See [NOAA's NODD access and cost FAQ](https://www.noaa.gov/big-data-project-frequently-asked-questions).
+The archive catalog entry was discoverable, but a sample GRIB byte retrieval was
+not verified. GFS changes over time, and the
+catalog record does not establish an immutable model-version or revision
+history. Prospective use would need to capture the raw bytes, provider/run
+metadata, first retrieval and publication evidence, version notices, and a
+checksum at receipt.
+
+**Decision: fail the historical source-qualification gate for operationally
+framed evaluation.** The run/lead metadata, global coverage, radiation field,
+and approximate archive depth make GFS worth a prospective trial. The missing
+historical publication evidence is decisive; sample-byte retrievability,
+revision history, the site/outcome, and full access costs also remain unresolved.
+The proposed IMD meteorological day makes the 3-hour aggregation arithmetically
+feasible, but must be approved as the study target. Do not treat the catalogued
+2022 sample as an as-issued vintage. A prospective archive is the fallback:
+first approve the site, timezone, issue cutoff, target interval and quantity,
+then retain every eligible cycle's raw file, receipt times, source notices,
+checksums, missing-cycle log, and transformation identity. Accumulate enough
+verified history for a predeclared chronological evaluation; do not backfill
+its availability from files downloaded later.
 
 A source can pass only if the study team can obtain the required historical
 vintages, establish issue-time availability, define valid-time alignment, confirm
