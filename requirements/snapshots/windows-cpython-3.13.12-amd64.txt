@@ -1,5 +1,7 @@
-# Observed third-party resolution: CPython 3.13.12, Windows 11 AMD64, 2026-11-19.
-# Generated with: python -m pip freeze --all. The editable sunreserve checkout is omitted.
+# Clean development environment: CPython 3.13.12, Windows 11 AMD64, 2026-11-21.
+# Installed from current main 51e9f34 with `python -m pip install -e ".[dev]"`.
+# Generated with `python -m pip freeze --all` before installing pinned pip-audit.
+# The editable `sunreserve @ git+...` line is intentionally omitted.
 
 altair==6.3.0
 anyio==4.16.0
@@ -19,25 +21,26 @@ jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 MarkupSafe==3.0.4
 narwhals==2.28.0
-numpy==2.5.4
+numpy==2.5.5
 packaging==26.3
 pandas==3.1.1
 pillow==13.0.0
-pip==26.2.0
+pip==26.3
 pluggy==1.7.0
 protobuf==7.36.2
 pyarrow==26.0.1
 pydeck==0.9.3
 Pygments==2.21.0
-pytest==9.0.3
+pytest==9.2.0
 python-dateutil==4.0.0
-python-multipart==0.0.33
+python-multipart==0.0.34
 referencing==0.37.0
 requests==2.34.2
 rpds-py==2026.9.1
 ruff==0.17.5
 scikit-learn==1.9.1
 scipy==1.18.1
+setuptools==84.2.1
 starlette==1.10.0
 streamlit==1.67.0
 threadpoolctl==3.8.0

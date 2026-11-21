@@ -1,19 +1,32 @@
 # Tested environment snapshot
 
-The application declares compatibility separately in `pyproject.toml`: CPython 3.11–3.13, with bounded but non-exact runtime and development dependency ranges. CI exercises those Python versions on Ubuntu and adds one Windows x64 PowerShell smoke on Python 3.13.12.
+The application declares broad compatibility ranges in `pyproject.toml` for
+CPython 3.11–3.13. The exact Windows reference snapshot is recorded in
+[`requirements/snapshots/windows-cpython-3.13.12-amd64.txt`](../requirements/snapshots/windows-cpython-3.13.12-amd64.txt).
 
-[`requirements/snapshots/windows-cpython-3.13.12-amd64.txt`](../requirements/snapshots/windows-cpython-3.13.12-amd64.txt) records the exact third-party package versions resolved in the local reference environment on 2026-11-19:
+## Clean reference environment
 
-- CPython 3.13.12, 64-bit AMD64
-- Windows 11, build 10.0.26300
-- 46 exact package versions, including development tools, transitive dependencies, and packages already present in the reference environment
-- The editable `sunreserve` checkout itself is omitted so the snapshot does not depend on a local or branch-specific source path
+On 2026-11-21, a clean Windows AMD64 virtual environment was created with CPython
+3.13.12 from current `main` at `51e9f34`, then installed from the current project
+and development extras with `python -m pip install -e ".[dev]"`. The resulting
+candidate `pip freeze --all` contained 47 third-party package pins. It was captured
+after the candidate upgrades and before the separately pinned `pip-audit` scanner
+was installed. The editable `sunreserve @ git+...` line is intentionally omitted.
 
-The snapshot was refreshed after dependency-audit findings to use pip 26.2.0 and pytest 9.0.3. The other package versions are preserved, and the separately installed `pip-audit` scanner remains outside the snapshot.
+The refreshed candidate set includes pip 26.3, numpy 2.5.5, pytest 9.2.0,
+python-multipart 0.0.34, and setuptools 84.2.1. The pinned scanner remains in
+`requirements/security-tools.txt` and is not part of the application environment
+snapshot.
 
-At the 2026-11-19 reference capture, the checkout was based on `3c0b56533a582962a135e4f274148cdaac52eda1` with uncommitted P0/P1 work in progress. This file captures package versions only; it is not a source-code snapshot.
+Validation of this clean environment completed with:
 
-Recreate that reference environment from PowerShell:
+- Full test suite: **306 passed, 4 skipped**.
+- `pip check`: no dependency conflicts.
+- Ruff lint and formatting checks: passed.
+- `pip-audit --no-deps -r requirements/snapshots/windows-cpython-3.13.12-amd64.txt`:
+  no known vulnerabilities reported.
+
+Recreate the recorded package environment from PowerShell:
 
 ```powershell
 py -3.13 -m venv .venv
@@ -22,6 +35,14 @@ py -3.13 -m venv .venv
 & .\.venv\Scripts\python.exe -m pip check
 ```
 
-The snapshot records one observed environment, including any ambient packages visible to `pip freeze`; it is not a minimal application lock. It does not replace the compatibility ranges, claim that the same wheels exist on every platform, or freeze Python itself. CI updates are proposals; review and refresh the snapshot deliberately when accepting dependency changes.
+The snapshot records one observed package resolution; it is not a source-code
+snapshot, a minimal application lock, or a guarantee that identical wheels exist
+on every platform. It does not freeze Python itself or replace the compatibility
+ranges. CI resolves compatible current releases on Ubuntu and separately tests
+selected declared minimums on Python 3.11; it does not cover a full package-version
+cross product.
 
-The selected declared minimums in `requirements/compat-minimums.txt` are installed together on Python 3.11 in CI. The supported-version CI matrix otherwise resolves the current compatible releases, so the project checks a small lower-bound sample and a small set of current resolutions without a full package-version cross product.
+The selected declared minimums in `requirements/compat-minimums.txt` are installed
+together on Python 3.11 in CI. The supported-version CI matrix otherwise resolves
+current compatible releases, so the project checks a small lower-bound sample and
+a small set of current resolutions.
