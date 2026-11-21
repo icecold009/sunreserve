@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pandas as pd
 import pytest
 
+import sunreserve.observations as observations_module
 from sunreserve.observations import (
     OBSERVATION_POLICY_NOTE,
     RADIATION,
@@ -70,6 +71,34 @@ def test_record_contract_rejects_duplicate_gap_invalid_and_future_dates() -> Non
         row["date"] = stamp.date().isoformat()
     with pytest.raises(ValueError, match="future-dated"):
         observation_frame_from_records(source)
+
+
+def test_future_date_validation_uses_utc_day_not_host_local_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class HostLocalDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return cls(2030, 1, 2)
+
+    class FixedDateTime:
+        @staticmethod
+        def now(tz: object) -> datetime:
+            assert tz is UTC
+            return datetime(2030, 1, 1, 23, 45, tzinfo=UTC)
+
+    monkeypatch.setattr(observations_module, "date", HostLocalDate)
+    monkeypatch.setattr(observations_module, "datetime", FixedDateTime)
+
+    assert observations_module.date.today() == date(2030, 1, 2)
+    assert observations_module.datetime.now(UTC) == datetime(2030, 1, 1, 23, 45, tzinfo=UTC)
+    frame = pd.DataFrame(
+        [{key: value for key, value in row.items() if key != "date"} for row in records()],
+        index=pd.date_range("2029-12-27", periods=7, freq="D"),
+    )
+
+    with pytest.raises(ValueError, match="future-dated"):
+        validate_observation_frame(frame)
 
 
 def test_frame_contract_rejects_subdaily_and_duplicate_calendar_dates() -> None:
