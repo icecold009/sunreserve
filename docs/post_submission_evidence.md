@@ -55,3 +55,28 @@ The inventory covers all 32 files tracked in the current checkout under `data/`,
 - No test suite or artifact-generation command was run for this inventory.
 - At the 2026-11-18 inventory capture, this evidence inventory was the only change in that
   task; no data, model, or evaluation artifact was modified then.
+
+## Current P4 forecast-time evidence status (2026-11-21)
+
+The bounded comparison schedule remains the one approved in the forecast-time
+protocol: an 18:00 IST issue cutoff and the following IMD meteorological-day
+target, represented as the half-open UTC interval `[03:00 on D+1, 03:00 on D+2)`.
+This is a comparison contract only. No operating schedule, installation site,
+target-site outcome source, or outcome quality procedure has been selected.
+
+Six saved NOAA NCEI Grid 4 NCSS point CSV responses for the 2020-04-12 06 UTC run
+cover the target after the exact nested-window reconstruction. The checker reports
+8.154 kWh/m² from those six target records. The separate +063 CSV is recorded as
+a supplemental structural sample and checked for its saved CSV hash, row identity,
+and metadata consistency; its +060 to +063 interval falls outside the target and
+is excluded from the integration. These hashes identify CSV response bytes, not
+raw GRIB. No raw GRIB or complete XML response body was captured.
+
+Historical first-publication and issue-time availability remain **UNVERIFIED**.
+All six target records have a null `client_receipt_timestamp_utc` field. The
+`response_observed_by_utc` value recorded for f024 is an observed-by metadata time,
+not a preserved client receipt clock. The archived CSV retrievals do not
+demonstrate publication by the 2020 issue cutoff, and the model-grid sample does
+not establish any observed site outcome.
+Operational evaluation is **NOT PERMITTED** on this evidence. The historical
+inventory and its byte-comparison statements above retain their original scope.

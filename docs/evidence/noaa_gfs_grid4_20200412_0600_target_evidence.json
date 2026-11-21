@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "study_contract": {
+    "approved_for_comparison_on": "2026-11-21",
+    "site_requested": {
+      "latitude_degrees_north": 12.9716,
+      "longitude_degrees_east": 77.5946,
+      "timezone": "Asia/Kolkata"
+    },
+    "returned_grid_cell": {
+      "latitude_degrees_north": 13.0,
+      "longitude_degrees_east": 77.5,
+      "selection_method": "NCEI NCSS grid-as-point response; no interpolation"
+    },
+    "issue_cutoff_local": "2020-04-12T18:00:00+05:30",
+    "issue_cutoff_utc": "2020-04-12T12:30:00Z",
+    "target_start_utc": "2020-04-13T03:00:00Z",
+    "target_end_utc": "2020-04-14T03:00:00Z",
+    "target_interval_convention": "half-open [start, end)",
+    "target_quantity": "integrated downward shortwave radiation",
+    "target_units": "kWh/m2",
+    "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+    "forecast_cycle_selection_note": "Latest plausible 00/06/12/18 UTC cycle at the approved 12:30 UTC cutoff; historical dissemination by cutoff is not established."
+  },
+  "source": {
+    "provider": "NOAA NCEI",
+    "service": "THREDDS NetCDF Subset Service (NCSS), grid as point CSV",
+    "archive_product": "GFS Grid 004, 0.5 degree historical archive",
+    "archive_description_url": "https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast",
+    "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+    "parameter": "0/4/192",
+    "parameter_name": "Downward short-wave radiation flux (DSWRF)",
+    "level": "surface, ground or water",
+    "statistical_processing": "Average",
+    "flux_units_in_source": "W.m-2",
+    "returned_grid_point_station": "GridPointRequestedAt[12.972N_77.595E]"
+  },
+  "capture_and_availability": {
+    "metadata_evidence_form": "Persisted structured excerpts of the source XML responses, including direct response URLs; full XML response bodies are not included.",
+    "csv_evidence_form": "Persisted one-row NCSS CSV responses and their SHA-256 digests.",
+    "exact_receipt_timestamps_preserved_for_all_records": false,
+    "receipt_timestamp_note": "The earlier browser retrieval output did not retain per-response receipt clocks for the five newly added CSVs. The local HTTP retry on 2026-11-21 failed DNS resolution and supplied no response or receipt time. Do not treat this manifest's creation/review time as a receipt timestamp.",
+    "local_refetch_attempt_at_utc": "2026-11-21T06:32:57Z",
+    "recapture_attempts": [
+      {
+        "method": "PowerShell HttpClient with network escalation",
+        "target": "f021 dataset.xml",
+        "attempted_at_utc": null,
+        "outcome": "Timed out after 90 seconds before an HTTP response body was received.",
+        "source_response_saved": false
+      },
+      {
+        "method": "Node fetch",
+        "target": "f021 dataset.xml",
+        "attempted_at_utc": "2026-11-21T09:37:48.480Z",
+        "outcome": "Fetch failed before receiving an HTTP response.",
+        "source_response_saved": false
+      },
+      {
+        "method": "Codex in-app browser navigation",
+        "target": "f021 dataset.xml",
+        "attempted_at_utc": null,
+        "outcome": "The browser displayed a 502 Proxy Error stating that the proxy received an invalid response from the upstream server.",
+        "source_response_saved": false
+      },
+      {
+        "method": "Codex in-app browser navigation",
+        "target": "f021 point CSV request URL",
+        "attempted_at_utc": null,
+        "outcome": "The navigation timed out; no point-response body was captured.",
+        "source_response_saved": false
+      }
+    ],
+    "historical_first_publication_time_utc": null,
+    "historical_issue_time_availability": "UNVERIFIED",
+    "availability_decision": "These archived values downloaded after their 2020 forecast time do not establish that the selected cycle was disseminated by the 2020-04-12 12:30 UTC issue cutoff.",
+    "raw_grib_bytes_or_checksum_preserved": false,
+    "source_revision_history_preserved": false
+  },
+  "records": [
+    {
+      "id": "f021",
+      "forecast_lead_end_hours": 21,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average",
+      "interval_start_utc": "2020-04-13T00:00:00Z",
+      "interval_end_utc": "2020-04-13T03:00:00Z",
+      "interval_midpoint_utc": "2020-04-13T01:30:00Z",
+      "interval_hours": 3,
+      "csv_request_time_utc": "2020-04-13T03:00:00Z",
+      "client_receipt_timestamp_utc": null,
+      "response_observed_by_utc": null,
+      "csv_response_file": "noaa_gfs_grid4_20200412_0600_f021_target_point_sample.csv",
+      "csv_response_sha256": "864d7e957114e0771be639a14355a847f5343e4f7362c39218daa261a1323070",
+      "csv_request_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_021.grb2?var=Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average&latitude=12.9716&longitude=77.5946&time=2020-04-13T03%3A00%3A00Z&accept=csv",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_021.grb2/dataset.xml",
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+        "time_axis_start_lead_hours": 18,
+        "time_axis_end_lead_hours": 21,
+        "time_axis_midpoint_lead_hours": 19.5,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      }
+    },
+    {
+      "id": "f024",
+      "forecast_lead_end_hours": 24,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+      "interval_start_utc": "2020-04-13T00:00:00Z",
+      "interval_end_utc": "2020-04-13T06:00:00Z",
+      "interval_midpoint_utc": "2020-04-13T03:00:00Z",
+      "interval_hours": 6,
+      "csv_request_time_utc": "2020-04-13T06:00:00Z",
+      "client_receipt_timestamp_utc": null,
+      "response_observed_by_utc": "2026-11-21T05:46:02Z",
+      "csv_response_file": "noaa_gfs_grid4_20200412_0600_f024_target_point_sample.csv",
+      "csv_response_sha256": "31ee618b9d13104c8bf7cce711c2ea0f7229ddea12875066d711f53d8342ea52",
+      "csv_request_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_024.grb2?var=Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average&latitude=12.9716&longitude=77.5946&time=2020-04-13T06%3A00%3A00Z&accept=csv",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_024.grb2/dataset.xml",
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+        "time_axis_start_lead_hours": 18,
+        "time_axis_end_lead_hours": 24,
+        "time_axis_midpoint_lead_hours": 21,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      }
+    },
+    {
+      "id": "f030",
+      "forecast_lead_end_hours": 30,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+      "interval_start_utc": "2020-04-13T06:00:00Z",
+      "interval_end_utc": "2020-04-13T12:00:00Z",
+      "interval_midpoint_utc": "2020-04-13T09:00:00Z",
+      "interval_hours": 6,
+      "csv_request_time_utc": "2020-04-13T12:00:00Z",
+      "client_receipt_timestamp_utc": null,
+      "response_observed_by_utc": null,
+      "csv_response_file": "noaa_gfs_grid4_20200412_0600_f030_target_point_sample.csv",
+      "csv_response_sha256": "227507ba939178bc4e1f6d116c02e107b008468032f09308bdf28422c88e3c26",
+      "csv_request_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_030.grb2?var=Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average&latitude=12.9716&longitude=77.5946&time=2020-04-13T12%3A00%3A00Z&accept=csv",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_030.grb2/dataset.xml",
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+        "time_axis_start_lead_hours": 24,
+        "time_axis_end_lead_hours": 30,
+        "time_axis_midpoint_lead_hours": 27,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      }
+    },
+    {
+      "id": "f036",
+      "forecast_lead_end_hours": 36,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+      "interval_start_utc": "2020-04-13T12:00:00Z",
+      "interval_end_utc": "2020-04-13T18:00:00Z",
+      "interval_midpoint_utc": "2020-04-13T15:00:00Z",
+      "interval_hours": 6,
+      "csv_request_time_utc": "2020-04-13T18:00:00Z",
+      "client_receipt_timestamp_utc": null,
+      "response_observed_by_utc": null,
+      "csv_response_file": "noaa_gfs_grid4_20200412_0600_f036_target_point_sample.csv",
+      "csv_response_sha256": "e91464338900c53810b6660da2a7861e19294cbc896f257214c1ab05ffe8ceb6",
+      "csv_request_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_036.grb2?var=Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average&latitude=12.9716&longitude=77.5946&time=2020-04-13T18%3A00%3A00Z&accept=csv",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_036.grb2/dataset.xml",
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+        "time_axis_start_lead_hours": 30,
+        "time_axis_end_lead_hours": 36,
+        "time_axis_midpoint_lead_hours": 33,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      }
+    },
+    {
+      "id": "f042",
+      "forecast_lead_end_hours": 42,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+      "interval_start_utc": "2020-04-13T18:00:00Z",
+      "interval_end_utc": "2020-04-14T00:00:00Z",
+      "interval_midpoint_utc": "2020-04-13T21:00:00Z",
+      "interval_hours": 6,
+      "csv_request_time_utc": "2020-04-14T00:00:00Z",
+      "client_receipt_timestamp_utc": null,
+      "response_observed_by_utc": null,
+      "csv_response_file": "noaa_gfs_grid4_20200412_0600_f042_target_point_sample.csv",
+      "csv_response_sha256": "955038b913ddb66657f7b1600a80e4507dbd922199ee3fd9a95a0fbb69e898eb",
+      "csv_request_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_042.grb2?var=Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average&latitude=12.9716&longitude=77.5946&time=2020-04-14T00%3A00%3A00Z&accept=csv",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_042.grb2/dataset.xml",
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+        "time_axis_start_lead_hours": 36,
+        "time_axis_end_lead_hours": 42,
+        "time_axis_midpoint_lead_hours": 39,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_6_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      }
+    },
+    {
+      "id": "f045",
+      "forecast_lead_end_hours": 45,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average",
+      "interval_start_utc": "2020-04-14T00:00:00Z",
+      "interval_end_utc": "2020-04-14T03:00:00Z",
+      "interval_midpoint_utc": "2020-04-14T01:30:00Z",
+      "interval_hours": 3,
+      "csv_request_time_utc": "2020-04-14T03:00:00Z",
+      "client_receipt_timestamp_utc": null,
+      "response_observed_by_utc": null,
+      "csv_response_file": "noaa_gfs_grid4_20200412_0600_f045_target_point_sample.csv",
+      "csv_response_sha256": "3ce55913fd416018ff5299e412ae05374201f47f4b4e74b0dc567c8ab771ac8b",
+      "csv_request_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_045.grb2?var=Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average&latitude=12.9716&longitude=77.5946&time=2020-04-14T03%3A00%3A00Z&accept=csv",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_0600_045.grb2/dataset.xml",
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T06:00:00Z",
+        "time_axis_start_lead_hours": 42,
+        "time_axis_end_lead_hours": 45,
+        "time_axis_midpoint_lead_hours": 43.5,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      }
+    }
+  ],
+  "supplemental_out_of_target_records": [
+    {
+      "id": "f063",
+      "forecast_reference_time_utc": "2020-04-12T18:00:00Z",
+      "forecast_lead_end_hours": 63,
+      "field_name": "Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average",
+      "interval_start_utc": "2020-04-15T06:00:00Z",
+      "interval_end_utc": "2020-04-15T09:00:00Z",
+      "interval_midpoint_utc": "2020-04-15T07:30:00Z",
+      "interval_hours": 3,
+      "metadata_response_excerpt": {
+        "forecast_reference_time_utc": "2020-04-12T18:00:00Z",
+        "time_axis_start_lead_hours": 60,
+        "time_axis_end_lead_hours": 63,
+        "time_axis_midpoint_lead_hours": 61.5,
+        "field_name": "Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average",
+        "parameter": "0/4/192",
+        "level": "surface, ground or water",
+        "units": "W.m-2",
+        "statistical_processing": "Average"
+      },
+      "csv_response_file": "noaa_gfs_grid4_20200412_1800_f063_point_sample.csv",
+      "csv_response_sha256": "57ebf6a13d5c14cbbeda8b659fb27aa5529b4a2ebb69c4445aaf6abcfa4a5af1",
+      "metadata_response_url": "https://www.ncei.noaa.gov/thredds/ncss/grid/model-gfs-004-files-old/202004/20200412/gfs_4_20200412_1800_063.grb2/dataset.xml",
+      "response_observed_by_utc": "2026-11-21T05:37:48Z",
+      "target_integration_included": false,
+      "exclusion_reason": "The [2020-04-15T06:00:00Z, 2020-04-15T09:00:00Z) interval is outside the approved target interval."
+    }
+  ],
+  "reconstruction": {
+    "method": "Subtract the energy of the nested 18-21 hour mean from the 18-24 hour mean to reconstruct 21-24; then sum contiguous nonoverlapping intervals through 45 hours.",
+    "identity_conditions": [
+      "Both nested means share forecast run, cell, parameter, level, units, and statistical process.",
+      "The 3-hour interval [18,21) is fully contained in the 6-hour interval [18,24), with the same start.",
+      "The implied [21,24) energy is the parent-window energy minus the child-window energy."
+    ],
+    "aggregation_result": "PASS: 8.154 kWh/m2; applies only to this retrieved grid-point sample. Reproduce with python scripts/check_gfs_target_aggregation.py."
+  },
+  "limitations": [
+    "Archived retrieval does not prove historical issue-time publication or availability.",
+    "Raw GRIB bytes and their checksum are not retained; the persisted response hashes identify NCSS CSV representations only.",
+    "The metadata excerpts are durable transcriptions of the inspected XML response fields, not complete raw XML bodies.",
+    "Exact client receipt timestamps for the five new CSV responses were not retained.",
+    "No observed site outcome, grid interpolation rule, source revision history, or operational validation is established."
+  ]
+}

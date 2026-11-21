@@ -1,0 +1,2 @@
+time,station,latitude[unit="degrees_north"],longitude[unit="degrees_east"],Downward_Short-Wave_Radiation_Flux_surface_3_Hour_Average[unit="W.m-2"]
+2020-04-14T01:30:00Z,GridPointRequestedAt[12.972N_77.595E],13.000,77.500,200.0
