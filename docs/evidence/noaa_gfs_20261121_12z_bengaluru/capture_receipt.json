@@ -1,0 +1,940 @@
+{
+  "bounds": {
+    "bottomlat": "12.875",
+    "leftlon": "77.375",
+    "rightlon": "77.625",
+    "toplat": "13.125"
+  },
+  "capture_completed_utc": "2026-11-21T19:33:50.518858Z",
+  "capture_started_utc": "2026-11-21T19:33:39.967147Z",
+  "capture_status": "COMPLETE",
+  "expected_forecast_lead_intervals": [
+    {
+      "interval_end_lead_hours": 39,
+      "interval_start_lead_hours": 36,
+      "lead_end_hours": 39
+    },
+    {
+      "interval_end_lead_hours": 42,
+      "interval_start_lead_hours": 36,
+      "lead_end_hours": 42
+    },
+    {
+      "interval_end_lead_hours": 45,
+      "interval_start_lead_hours": 42,
+      "lead_end_hours": 45
+    },
+    {
+      "interval_end_lead_hours": 48,
+      "interval_start_lead_hours": 42,
+      "lead_end_hours": 48
+    },
+    {
+      "interval_end_lead_hours": 51,
+      "interval_start_lead_hours": 48,
+      "lead_end_hours": 51
+    },
+    {
+      "interval_end_lead_hours": 54,
+      "interval_start_lead_hours": 48,
+      "lead_end_hours": 54
+    },
+    {
+      "interval_end_lead_hours": 57,
+      "interval_start_lead_hours": 54,
+      "lead_end_hours": 57
+    },
+    {
+      "interval_end_lead_hours": 60,
+      "interval_start_lead_hours": 54,
+      "lead_end_hours": 60
+    },
+    {
+      "interval_end_lead_hours": 63,
+      "interval_start_lead_hours": 60,
+      "lead_end_hours": 63
+    }
+  ],
+  "expected_grid_point": {
+    "latitude_degrees_north": 13.0,
+    "longitude_degrees_east": 77.5
+  },
+  "forecast_reference_time_utc": "2026-11-21T12:00:00.000000Z",
+  "issue_cutoff_availability": "NOT ESTABLISHED",
+  "latest_cycle_claim": false,
+  "limitations": [
+    "This capture does not establish that the selected run is the latest cycle.",
+    "This capture does not establish availability by the 18:00 IST protocol issue cutoff.",
+    "No radiation values are integrated and no operational evaluation result is computed."
+  ],
+  "operational_result_computed": false,
+  "protocol_issue_cutoff_local": "2026-11-22T18:00:00+05:30",
+  "purpose": "one exploratory prospective GFS forecast vintage",
+  "records": [
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 39,
+        "start_lead_hours": 36
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:46.761194Z",
+        "file": "f039.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f039&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f039",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f039&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:46.299002Z",
+        "response_headers": {
+          "Akamai-GRN": "0.8f0a2c17.1795289626.1ef0bb7d",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519093117,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f039\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:46 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:46 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=144343c0-f273-1b01-9678-00e0eddbf4e7_0142564226_0812142278_00000000094829144757; Path=/; Expires=Sat, 21-Nov-2026 19:34:01 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "a71b600db858cfe84946e8e7dbbf7c0cb473b3a0110e1bd0ebd873cd68dde665",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:41.926958Z",
+        "file": "f039.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f039.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f039.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:39.967326Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.bc0a2c17.1795289620.12e31d90",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316874128,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41281",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:41 GMT",
+          "Expires": "Sat, 21 Nov 2026 20:00:58 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:43:04 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "7e9bb9c15140440a46f42294dcfec6d002c07bd411b5277beabf3d4dd8771a96",
+        "size_bytes": 41281
+      },
+      "lead_end_hours": 39
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 42,
+        "start_lead_hours": 36
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:47.266372Z",
+        "file": "f042.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f042&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f042",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f042&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:46.762279Z",
+        "response_headers": {
+          "Akamai-GRN": "0.bc0a2c17.1795289626.12e3225d",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316875357,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f042\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:47 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:47 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=143d3e63-f273-1b01-9678-00e0eddbf4e7_1756205452_1354410419_00000000099123258465; Path=/; Expires=Sat, 21-Nov-2026 19:34:02 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "21e91cd55854d1cc104f59431090007bb90fbdd322b0af4e5f3d466cc99702e7",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:43.324455Z",
+        "file": "f042.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f042.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f042.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:41.928000Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.8f0a2c17.1795289622.1ef0b84f",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519092303,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41278",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:43 GMT",
+          "Expires": "Sat, 21 Nov 2026 19:44:33 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:43:41 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "94ffa91c3ba1232414c998bedfd497677d31b4fda43630074cdf42ad2f54d24f",
+        "size_bytes": 41278
+      },
+      "lead_end_hours": 42
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 45,
+        "start_lead_hours": 42
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:47.710129Z",
+        "file": "f045.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f045&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f045",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f045&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:47.267327Z",
+        "response_headers": {
+          "Akamai-GRN": "0.8f0a2c17.1795289627.1ef0bc31",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519093297,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f045\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:47 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:47 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=142be097-f274-1b01-9678-00e0eddbf4e7_2525729164_2929502643_00000000056172949380; Path=/; Expires=Sat, 21-Nov-2026 19:34:02 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "47c70c67ec0034bdcf8838ee81dd4096408f97c6405498aeeaa9a07f5d11d347",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:43.793162Z",
+        "file": "f045.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f045.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f045.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:43.325576Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.bc0a2c17.1795289623.12e31fb4",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316874676,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41280",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:43 GMT",
+          "Expires": "Sat, 21 Nov 2026 19:45:56 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:44:44 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "dc6c61226cbb81c472e8f6313bf9b43f7ca1f59f136b9d85782c05439c8dac9d",
+        "size_bytes": 41280
+      },
+      "lead_end_hours": 45
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 48,
+        "start_lead_hours": 42
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:48.170453Z",
+        "file": "f048.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f048&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f048",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f048&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:47.711011Z",
+        "response_headers": {
+          "Akamai-GRN": "0.bc0a2c17.1795289627.12e3233c",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316875580,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f048\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:48 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:48 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=143d2918-f274-1b01-9678-00e0eddbf4e7_1099062146_2039828166_00000000086238394127; Path=/; Expires=Sat, 21-Nov-2026 19:34:03 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "e5833e9273da0a0916dd4f24a97f22af0c3706fabcaf72446e1fb7aa563da873",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:44.182224Z",
+        "file": "f048.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f048.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f048.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:43.794132Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.8f0a2c17.1795289624.1ef0b995",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519092629,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41276",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:44 GMT",
+          "Expires": "Sat, 21 Nov 2026 19:47:33 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:47:30 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "1c18d9239e3e72a0da40b7c1f095f401f8310411cc50d2020c7721194ce6731b",
+        "size_bytes": 41276
+      },
+      "lead_end_hours": 48
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 51,
+        "start_lead_hours": 48
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:48.636226Z",
+        "file": "f051.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f051&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f051",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f051&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:48.171714Z",
+        "response_headers": {
+          "Akamai-GRN": "0.8f0a2c17.1795289628.1ef0bcab",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519093419,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f051\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:48 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:48 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=144dc490-f274-1b01-9678-00e0eddbf4e7_2882310540_2480646579_00000000073354144611; Path=/; Expires=Sat, 21-Nov-2026 19:34:03 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "6f4ad7e570c31faf5e13179c8244e0a082ac21f6757f62424f41376448086fa5",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:44.804049Z",
+        "file": "f051.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f051.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f051.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:44.183096Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.bc0a2c17.1795289624.12e3205e",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316874846,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41284",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:44 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:44 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:48:42 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=143456fe-f271-1b01-9678-00e0eddbf4e7_0816474672_0146625039_00000000090533183340; Path=/; Expires=Sat, 21-Nov-2026 19:33:59 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "830b62ab9b69a672ddd1bc12b96541eb39434014a7f577f3a200d9b78672032f",
+        "size_bytes": 41284
+      },
+      "lead_end_hours": 51
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 54,
+        "start_lead_hours": 48
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:49.100703Z",
+        "file": "f054.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f054&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f054",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f054&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:48.637179Z",
+        "response_headers": {
+          "Akamai-GRN": "0.bc0a2c17.1795289628.12e323d4",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316875732,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f054\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:49 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:49 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=1433a474-f275-1b01-9678-00e0eddbf4e7_0066949516_1005234611_00000000043288184296; Path=/; Expires=Sat, 21-Nov-2026 19:34:04 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "233930200bb643f229a81b6a0f915301fb9865979a1d9435446336c085df2946",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:45.173763Z",
+        "file": "f054.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f054.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f054.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:44.806008Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.bc0a2c17.1795289625.12e320d5",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316874965,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41283",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:45 GMT",
+          "Expires": "Sat, 21 Nov 2026 21:04:01 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:47:15 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "9aa1dd8304e719bae8e0d9146d9adf78fbb0756d8ca36dde2c041fc66b51b9b6",
+        "size_bytes": 41283
+      },
+      "lead_end_hours": 54
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 57,
+        "start_lead_hours": 54
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:49.542431Z",
+        "file": "f057.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f057&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f057",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f057&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:49.101486Z",
+        "response_headers": {
+          "Akamai-GRN": "0.8f0a2c17.1795289629.1ef0bd60",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519093600,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f057\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:49 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:49 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=144f466d-f275-1b01-9678-00e0eddbf4e7_3672005506_3804843718_00000000094829147793; Path=/; Expires=Sat, 21-Nov-2026 19:34:04 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "4383a2cd7e1caeeb703965e0d429af11971b3ce65e8b02f2bb1d6d06370d9876",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:45.521719Z",
+        "file": "f057.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f057.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f057.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:45.174827Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.8f0a2c17.1795289625.1ef0ba99",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519092889,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41283",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:45 GMT",
+          "Expires": "Sat, 21 Nov 2026 19:52:20 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:47:38 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "e7fe72a26a1fe877af90c397794cecdfda733bb59731e0acfdf13460094286b7",
+        "size_bytes": 41283
+      },
+      "lead_end_hours": 57
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 60,
+        "start_lead_hours": 54
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:50.031846Z",
+        "file": "f060.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f060&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f060",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f060&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:49.543334Z",
+        "response_headers": {
+          "Akamai-GRN": "0.bc0a2c17.1795289629.12e3246a",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316875882,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f060\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:50 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:49 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=143a254c-f276-1b01-9678-00e0eddbf4e7_4176515468_3236407731_00000000099123261361; Path=/; Expires=Sat, 21-Nov-2026 19:34:04 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "e914c3b0ff9e066ac61942be0805f0384b022e1fee8be9cfb238fcd7ee737b44",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:45.858962Z",
+        "file": "f060.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f060.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f060.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:45.523303Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.8f0a2c17.1795289625.1ef0bade",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519092958,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41283",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:45 GMT",
+          "Expires": "Sat, 21 Nov 2026 19:49:34 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:49:24 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "c322587796726e0cb4ce30e26dff52a4f7eb291628b2387999104a8d59b138a1",
+        "size_bytes": 41283
+      },
+      "lead_end_hours": 60
+    },
+    {
+      "decoded_dswrf_interval": {
+        "end_lead_hours": 63,
+        "start_lead_hours": 60
+      },
+      "grib2_response": {
+        "body_received_utc": "2026-11-21T19:33:50.518011Z",
+        "file": "f063.grib2",
+        "final_url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f063&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {
+            "bottomlat": "12.875",
+            "dir": "/gfs.20261121/12/atmos",
+            "file": "gfs.t12z.pgrb2.0p25.f063",
+            "leftlon": "77.375",
+            "lev_surface": "on",
+            "rightlon": "77.625",
+            "subregion": "",
+            "toplat": "13.125",
+            "var_DSWRF": "on"
+          },
+          "url": "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t12z.pgrb2.0p25.f063&var_DSWRF=on&lev_surface=on&subregion=&leftlon=77.375&rightlon=77.625&toplat=13.125&bottomlat=12.875&dir=%2Fgfs.20261121%2F12%2Fatmos"
+        },
+        "request_started_utc": "2026-11-21T19:33:50.032614Z",
+        "response_headers": {
+          "Akamai-GRN": "0.bc0a2c17.1795289630.12e324b1",
+          "Akamai-Request-BC": "[a=23.44.10.188,b=316875953,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940],[a=18,c=o]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Description": "grib2 file",
+          "Content-Disposition": "attachment; filename=\"gfs.t12z.pgrb2.0p25.f063\"",
+          "Content-Length": "203",
+          "Content-Security-Policy": "default-src 'self'",
+          "Content-Transfer-Encoding": "binary",
+          "Content-Type": "application/octet-stream",
+          "Date": "Sat, 21 Nov 2026 19:33:50 GMT",
+          "Expires": "Sat, 21 Nov 2026 23:33:50 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Set-Cookie": "NSC_ESNS=143f46f3-f276-1b01-9678-00e0eddbf4e7_2602996108_2737940915_00000000030403647986; Path=/; Expires=Sat, 21-Nov-2026 19:34:05 GMT",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "05263bec7150a11be9678b73ca54465068a0718172af5aa47e85a154bd19b620",
+        "size_bytes": 203
+      },
+      "idx_response": {
+        "body_received_utc": "2026-11-21T19:33:46.210453Z",
+        "file": "f063.idx",
+        "final_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f063.idx",
+        "http_status": 200,
+        "request": {
+          "method": "GET",
+          "parameters": {},
+          "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261121/12/atmos/gfs.t12z.pgrb2.0p25.f063.idx"
+        },
+        "request_started_utc": "2026-11-21T19:33:45.859987Z",
+        "response_headers": {
+          "Accept-Ranges": "bytes",
+          "Akamai-GRN": "0.8f0a2c17.1795289626.1ef0bb1e",
+          "Akamai-Request-BC": "[a=23.44.10.143,b=519093022,c=g,n=IN_TN_CHENNAI,o=20940],[c=c,n=US_GA_ATLANTA,o=20940]",
+          "Cache-Control": "no-cache, private, max-age=14400",
+          "Connection": "close",
+          "Content-Length": "41279",
+          "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' *;",
+          "Date": "Sat, 21 Nov 2026 19:33:46 GMT",
+          "Expires": "Sat, 21 Nov 2026 20:01:31 GMT",
+          "Last-Modified": "Sat, 21 Nov 2026 15:49:39 GMT",
+          "Referrer-Policy": "no-referrer",
+          "Server": "Apache",
+          "Strict-Transport-Security": "max-age=31536000 ; preload",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-XSS-Protection": "1; mode=block"
+        },
+        "sha256": "212db4efe607d9414e8a427f9f5dea1ea9452bbcac0690a5b6f8d1c11215bf3b",
+        "size_bytes": 41279
+      },
+      "lead_end_hours": 63
+    }
+  ],
+  "requested_point": {
+    "latitude_degrees_north": 12.9716,
+    "longitude_degrees_east": 77.5946
+  },
+  "schema_version": 1,
+  "source": {
+    "grid_point_selection": "single point returned by the specified bounds",
+    "level": "surface",
+    "product": "GFS 0.25 degree pgrb2",
+    "provider": "NOAA NOMADS",
+    "units": "W m-2",
+    "variable": "DSWRF"
+  },
+  "target_interval_convention": "half-open [start, end)",
+  "target_interval_local": [
+    "2026-11-23T08:30:00+05:30",
+    "2026-11-24T08:30:00+05:30"
+  ],
+  "target_interval_utc": [
+    "2026-11-23T03:00:00.000000Z",
+    "2026-11-24T03:00:00.000000Z"
+  ],
+  "target_reconstruction_segments": [
+    {
+      "end_lead_hours": 42,
+      "interval_end_utc": "2026-11-23T06:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T03:00:00.000000Z",
+      "method": "f042 minus f039",
+      "source_leads": [
+        42,
+        39
+      ],
+      "start_lead_hours": 39
+    },
+    {
+      "end_lead_hours": 45,
+      "interval_end_utc": "2026-11-23T09:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T06:00:00.000000Z",
+      "method": "f045 direct interval",
+      "source_leads": [
+        45
+      ],
+      "start_lead_hours": 42
+    },
+    {
+      "end_lead_hours": 48,
+      "interval_end_utc": "2026-11-23T12:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T09:00:00.000000Z",
+      "method": "f048 minus f045",
+      "source_leads": [
+        48,
+        45
+      ],
+      "start_lead_hours": 45
+    },
+    {
+      "end_lead_hours": 51,
+      "interval_end_utc": "2026-11-23T15:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T12:00:00.000000Z",
+      "method": "f051 direct interval",
+      "source_leads": [
+        51
+      ],
+      "start_lead_hours": 48
+    },
+    {
+      "end_lead_hours": 54,
+      "interval_end_utc": "2026-11-23T18:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T15:00:00.000000Z",
+      "method": "f054 minus f051",
+      "source_leads": [
+        54,
+        51
+      ],
+      "start_lead_hours": 51
+    },
+    {
+      "end_lead_hours": 57,
+      "interval_end_utc": "2026-11-23T21:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T18:00:00.000000Z",
+      "method": "f057 direct interval",
+      "source_leads": [
+        57
+      ],
+      "start_lead_hours": 54
+    },
+    {
+      "end_lead_hours": 60,
+      "interval_end_utc": "2026-11-24T00:00:00.000000Z",
+      "interval_start_utc": "2026-11-23T21:00:00.000000Z",
+      "method": "f060 minus f057",
+      "source_leads": [
+        60,
+        57
+      ],
+      "start_lead_hours": 57
+    },
+    {
+      "end_lead_hours": 63,
+      "interval_end_utc": "2026-11-24T03:00:00.000000Z",
+      "interval_start_utc": "2026-11-24T00:00:00.000000Z",
+      "method": "f063 direct interval",
+      "source_leads": [
+        63
+      ],
+      "start_lead_hours": 60
+    }
+  ]
+}
