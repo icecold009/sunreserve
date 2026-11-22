@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import numpy as np
@@ -72,7 +72,8 @@ def validate_observation_frame(
     expected = pd.date_range(index[0], periods=7, freq="D")
     if not index.equals(expected):
         raise ValueError("daily observation dates must be consecutive calendar days")
-    if index[-1].date() > (as_of or date.today()):
+    current_date = as_of if as_of is not None else datetime.now(UTC).date()
+    if index[-1].date() > current_date:
         raise ValueError("daily observation window must not contain future-dated observations")
 
     converted: dict[str, list[float]] = {field: [] for field in NUMERIC_FIELDS}
