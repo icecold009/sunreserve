@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import io
 import json
 import re
 import struct
+import urllib.error
 from datetime import UTC, datetime, timedelta
+from email.message import Message
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -533,6 +536,58 @@ def test_candidate_logs_unavailable_network_response_without_inventing_receipt(
     assert "OSError: connection unavailable" == attempt["error"]
     assert "file" not in attempt
     assert capture_script.verify_candidate(output_dir)["candidate_status"] == "INCOMPLETE"
+
+
+def test_candidate_logs_http_error_response_body_and_metadata(tmp_path: Path) -> None:
+    cycle = "2026112206"
+    intervals = interval_map(21, 45)
+    delegate, _ = candidate_opener(cycle, intervals)
+    body = b"NOMADS unavailable"
+    headers = Message()
+    headers["Content-Type"] = "text/plain"
+    headers["Retry-After"] = "60"
+    http_error_url = "https://nomads.ncep.noaa.gov/error/f015.idx"
+    clock_value = datetime(2026, 11, 22, 7, tzinfo=UTC)
+    failed = False
+
+    def opener(request, *, timeout: int) -> FakeResponse:
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise urllib.error.HTTPError(
+                http_error_url,
+                503,
+                "Service Unavailable",
+                headers,
+                io.BytesIO(body),
+            )
+        return delegate(request, timeout=timeout)
+
+    output_dir = tmp_path / "http-error"
+    receipt = capture_script.capture(
+        cycle,
+        "2026-11-22T12:30:00Z",
+        "2026-11-23T03:00:00Z",
+        "2026-11-24T03:00:00Z",
+        output_dir,
+        opener=opener,
+        clock=lambda: clock_value,
+    )
+
+    attempt = receipt["attempts"][0]
+    saved = output_dir / attempt["file"]
+    assert attempt["http_status"] == 503
+    assert attempt["response_headers"]["Retry-After"] == "60"
+    assert attempt["final_url"] == http_error_url
+    assert attempt["request_started_utc"] == "2026-11-22T07:00:00.000000Z"
+    assert attempt["body_received_utc"] == "2026-11-22T07:00:00.000000Z"
+    assert saved.read_bytes() == body
+    assert attempt["size_bytes"] == len(body)
+    assert attempt["sha256"] == capture_script.sha256(body)
+    assert attempt["error"] == "HTTP status 503"
+    verified = capture_script.verify_candidate(output_dir)
+    assert verified["candidate_status"] == "COMPLETE"
+    assert verified["eligible_before_cutoff"] is True
 
 
 @pytest.mark.parametrize(

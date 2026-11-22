@@ -9,6 +9,7 @@ import math
 import re
 import struct
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
@@ -858,6 +859,20 @@ def _attempt_request(
                 record["error"] = f"HTTP status {response.status}"
             elif received > cutoff:
                 record["error"] = "response body received after cutoff"
+    except urllib.error.HTTPError as exc:
+        body = exc.read()
+        received = parse_utc_datetime(now(), "response body clock")
+        record.update(
+            {
+                "body_received_utc": timestamp_utc(received),
+                "http_status": int(exc.code),
+                "response_headers": {str(key): str(value) for key, value in exc.headers.items()},
+                "final_url": exc.geturl(),
+            }
+        )
+        suffix = "idx" if kind == "index" else "grib2"
+        record.update(save_exclusive(directory / f"f{lead:03d}.{suffix}", body))
+        record["error"] = f"HTTP status {exc.code}"
     except Exception as exc:
         record["error"] = f"{type(exc).__name__}: {exc}"
     return record
