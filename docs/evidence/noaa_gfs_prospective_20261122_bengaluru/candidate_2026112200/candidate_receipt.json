@@ -1,0 +1,572 @@
+{
+  "all_response_bodies_received_by_cutoff": true,
+  "attempts": [
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.512669Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 21,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f021.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.512669Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.824726Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 22,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f022.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.824726Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.826905Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 23,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f023.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.826905Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.829471Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 24,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f024.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.829471Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.832178Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 25,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f025.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.832178Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.838053Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 26,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f026.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.838053Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.850972Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 27,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f027.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.850972Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.853842Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 28,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f028.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.853842Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.856166Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 29,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f029.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.856166Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.858428Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 30,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f030.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.858428Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.864533Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 31,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f031.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.864533Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.867851Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 32,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f032.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.867851Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.869902Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 33,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f033.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.869902Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.871479Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 34,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f034.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.871479Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.873002Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 35,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f035.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.873002Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.874477Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 36,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f036.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.874477Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.876354Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 37,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f037.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.876354Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.878453Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 38,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f038.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.878453Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.880085Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 39,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f039.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.880085Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.882584Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 40,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f040.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.882584Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.885564Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 41,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f041.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.885564Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.887565Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 42,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f042.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.887565Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.889572Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 43,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f043.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.889572Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.891041Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 44,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f044.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.891041Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.892555Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 45,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f045.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.892555Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.894116Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 46,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f046.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.894116Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.895505Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 47,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f047.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.895505Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.896873Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 48,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f048.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.896873Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.898762Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 49,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f049.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.898762Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.901502Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 50,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f050.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.901502Z",
+      "response_headers": null
+    },
+    {
+      "attempt_checked_utc": "2026-11-22T06:56:13.904251Z",
+      "body_received_utc": null,
+      "error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+      "final_url": null,
+      "http_status": null,
+      "kind": "index",
+      "lead_end_hours": 51,
+      "request": {
+        "method": "GET",
+        "parameters": {},
+        "url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.20261122/00/atmos/gfs.t00z.pgrb2.0p25.f051.idx"
+      },
+      "request_started_utc": "2026-11-22T06:56:13.904251Z",
+      "response_headers": null
+    }
+  ],
+  "bounds": {
+    "bottomlat": "12.875",
+    "leftlon": "77.375",
+    "rightlon": "77.625",
+    "toplat": "13.125"
+  },
+  "capture_completed_utc": "2026-11-22T06:56:13.905943Z",
+  "capture_started_utc": "2026-11-22T06:56:13.512499Z",
+  "capture_status": "INCOMPLETE",
+  "cutoff_utc": "2026-11-22T12:30:00.000000Z",
+  "cycle": "2026112200",
+  "eligible_before_cutoff": false,
+  "expected_grid_point": {
+    "latitude_degrees_north": 13.0,
+    "longitude_degrees_east": 77.5
+  },
+  "failure_reason": "decoded DSWRF intervals cannot reconstruct the complete target interval",
+  "forecast_reference_time_utc": "2026-11-22T00:00:00.000000Z",
+  "probe_leads": [
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51
+  ],
+  "record_type": "gfs_candidate",
+  "requested_point": {
+    "latitude_degrees_north": 12.9716,
+    "longitude_degrees_east": 77.5946
+  },
+  "required_leads": [],
+  "schema_version": 2,
+  "source": {
+    "level": "surface",
+    "product": "GFS 0.25 degree pgrb2",
+    "provider": "NOAA NOMADS",
+    "units": "W m-2",
+    "variable": "DSWRF"
+  },
+  "target_interval_convention": "half-open [start, end)",
+  "target_interval_utc": [
+    "2026-11-23T03:00:00.000000Z",
+    "2026-11-24T03:00:00.000000Z"
+  ],
+  "target_reconstruction_segments": []
+}

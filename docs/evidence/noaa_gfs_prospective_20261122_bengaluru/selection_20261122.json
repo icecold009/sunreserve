@@ -1,0 +1,71 @@
+{
+  "candidate_results": [
+    {
+      "candidate_directory": "candidate_2026112200",
+      "capture_status": "INCOMPLETE",
+      "contract_match": true,
+      "cycle": "2026112200",
+      "eligible": false
+    },
+    {
+      "candidate_directory": "candidate_2026112200_retry_01",
+      "capture_status": "COMPLETE",
+      "contract_match": true,
+      "cycle": "2026112200",
+      "eligible": true
+    },
+    {
+      "candidate_directory": "candidate_2026112206_initial",
+      "capture_status": "INCOMPLETE",
+      "contract_match": true,
+      "cycle": "2026112206",
+      "eligible": false
+    },
+    {
+      "candidate_directory": "candidate_2026112206_retry_01",
+      "capture_status": "INCOMPLETE",
+      "contract_match": true,
+      "cycle": "2026112206",
+      "eligible": false
+    },
+    {
+      "candidate_directory": "candidate_2026112206_retry_02",
+      "capture_status": "COMPLETE",
+      "contract_match": true,
+      "cycle": "2026112206",
+      "eligible": true
+    },
+    {
+      "candidate_directory": "candidate_2026112212_initial",
+      "capture_status": "INCOMPLETE",
+      "contract_match": true,
+      "cycle": "2026112212",
+      "eligible": false
+    },
+    {
+      "candidate_directory": "candidate_2026112212_retry_01",
+      "capture_status": "INCOMPLETE",
+      "contract_match": true,
+      "cycle": "2026112212",
+      "eligible": false
+    }
+  ],
+  "cutoff_utc": "2026-11-22T12:30:00.000000Z",
+  "failure_reason": null,
+  "issue_day": "20261122",
+  "record_type": "gfs_selection",
+  "scheduled_cycles": [
+    "2026-11-22T00:00:00.000000Z",
+    "2026-11-22T06:00:00.000000Z",
+    "2026-11-22T12:00:00.000000Z",
+    "2026-11-22T18:00:00.000000Z"
+  ],
+  "schema_version": 2,
+  "selected_candidate_directory": "candidate_2026112206_retry_02",
+  "selected_cycle": "2026112206",
+  "selection_status": "SELECTED",
+  "target_interval_utc": [
+    "2026-11-23T03:00:00.000000Z",
+    "2026-11-24T03:00:00.000000Z"
+  ]
+}
