@@ -7,14 +7,14 @@ This checklist separates observed UI behavior from checks that still need a dire
 | Flow | Status | Evidence |
 | --- | --- | --- |
 | Save the blank CSV template | **Passed** | Downloaded the template and checked its header and seven blank observation rows. |
-| Import a valid seven-row CSV | **Pending** | Native file picker was not accessible through the browser automation session. |
-| Reject invalid CSV input | **Pending** | Native file picker was not accessible through the browser automation session. |
-| Reset after import and reimport valid CSV | **Pending** | Requires the file-picker actions above and a visible reset/reimport result. |
-| Run a fresh prediction and save JSON whose values match the displayed result | **Pending** | A fresh prediction was displayed, but the current download and its saved contents were not verified. |
+| Import a valid seven-row CSV | **Passed** | User confirmed import succeeded. Displayed rows matched the valid fixture, which is identical to the historical example. |
+| Reject invalid CSV input | **Passed** | User confirmed the invalid CSV rejection was visible. |
+| Reset after import and reimport valid CSV | **Passed** | User confirmed reset and reimport succeeded. |
+| Run a fresh prediction and save JSON whose values match the displayed result | **Passed with source limitation** | Saved JSON matched the displayed fresh result: target 2025-01-01; Ridge 5.390630517794998, persistence 5.7787, seasonal 5.257658659217877; each prepared reserve output was 0. JSON source kind was `local_historical_example`, so this does not establish that the result came from the imported CSV. |
 | Select replay model and saved scenario | **Passed** | Keyboard selection changed the approach to Persistence baseline and selected a saved sensitivity scenario. |
 | Operate replay controls with the keyboard | **Passed** | Tab moved focus from the scenario selector to the validation-date year control; Enter activated the fresh-prediction action. |
 | Check chart and app warnings | **No warning observed** | No Vega or Streamlit warning/error appeared in the available browser console and local server log during this check. |
-| Launch and stop from a clean checkout | **Pending** | Verify the README commands from a clean checkout and stop with Ctrl+C in the launching PowerShell session. |
+| Launch and stop from a clean checkout | **Launch/stop passed; dependency install blocked** | A clean clone imported the source and Streamlit started at canonical port 8501, then stopped with Ctrl+C. The CUA browser network could not reach the process; exact-head Windows CI health check passed. A fresh `pip install -e ".[dev]"` was blocked after one attempt by restricted DNS resolving `setuptools>=84.1.0`; no retry was made. |
 
 ## Manual acceptance procedure
 
