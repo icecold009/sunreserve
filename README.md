@@ -4,7 +4,7 @@
 
 SunReserve uses a trained solar-radiation model to explore tomorrow’s backup-energy needs.
 
-![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) ![306 passed, 4 skipped](https://img.shields.io/badge/Tests-306%20passed%2C%204%20skipped-f2c14e)
+![Python 3.11–3.13](https://img.shields.io/badge/Python-3.11%E2%80%933.13-15324b?logo=python&logoColor=f7f5ee) ![Trained Ridge inference](https://img.shields.io/badge/Inference-trained%20Ridge-168b88) [![CI](https://github.com/icecold009/sunreserve/actions/workflows/ci.yml/badge.svg)](https://github.com/icecold009/sunreserve/actions/workflows/ci.yml)
 
 <p align="center"><img src="docs/assets/prediction-demo.png" alt="SunReserve fresh Ridge forecast and planned reserve beside a seven-day input window and baseline comparison" width="900"></p>
 
@@ -65,7 +65,9 @@ python -m venv .venv
 & .\.venv\Scripts\python.exe -m streamlit run app.py --server.headless true --server.address 127.0.0.1 --browser.gatherUsageStats false
 ```
 
-The default view is **Next-day AI prediction**. Confirm or replace the seven daily rows and choose **Run fresh Ridge prediction**. The separate replay view reads its saved historical artifacts. Neither mode contacts NASA POWER at startup. To refresh source data explicitly, follow the fetch, prepare, and validation procedure in the [method and results write-up](docs/writeup.md).
+The default view is **Next-day AI prediction**. Confirm or replace the seven daily rows and choose **Run fresh Ridge prediction**. The separate replay view reads its saved historical artifacts. Neither mode contacts NASA POWER at startup. To stop the local server, press **Ctrl+C** in the PowerShell window running Streamlit. To refresh source data explicitly, follow the fetch, prepare, and validation procedure in the [method and results write-up](docs/writeup.md).
+
+The local demo supports editing or importing seven daily observations, running a fresh trained Ridge estimate alongside two baselines, exporting the result as JSON, and replaying frozen historical results. The [demo acceptance checklist](docs/demo_acceptance.md) records which user flows have been observed and which still need a manual browser check. Separate owner decisions and hosted cleanup limitations are listed in [closeout dispositions](docs/closeout_dispositions.md).
 
 The [tested environment snapshot](docs/environment-snapshot.md) records one exact Windows/Python resolution separately from the supported compatibility ranges. [Dependency security guidance](docs/dependency-security.md) explains the vulnerability scan and review process.
 
@@ -75,6 +77,10 @@ The [tested environment snapshot](docs/environment-snapshot.md) records one exac
 - **Hypothetical school/system:** Demand, panel area, efficiency, derating, capacity, and buffer are assumptions rather than facility measurements.
 - **Simplified conversion:** Radiation becomes an electricity proxy without hourly generation, storage state, outages, or dispatch behavior.
 - **No field validation:** The prototype has not been evaluated against a school's meter, rooftop system, or operating reserve decisions.
+
+## Research status
+
+The functions above make this a runnable research/demo prototype; they do not establish forecast performance for a real site. Further evaluation requires a measured outcome source aligned to the target interval, with station identity, units, timestamps, missingness and quality-control rules, and reuse terms verified. Prospective forecast vintages must accumulate under a fixed collection and evaluation protocol before performance is assessed. Capture eligibility alone is not performance evidence. Keep the frozen 2025 results and holdout boundary intact.
 
 ## Reproduce and inspect
 
